@@ -1,8 +1,4 @@
-# ESP32 PlatformIO Template
-
-ESP32 + PlatformIO を使用するプロジェクトのテンプレートです。
-
-サンプルとして、ESP32のLEDを一定間隔で点滅させながら、状態をシリアル出力します。
+# 2027関西春ロボコン
 
 ## 必要環境
 
@@ -19,8 +15,8 @@ PlatformIO Core を別途インストールする必要はありません。
 ## リポジトリを取得
 
 ```bash
-git clone <repository-url>
-cd esp32-platformio-template
+git clone htttps://github.com/KTC-robot/sakura-avenue.git
+cd sakura-avenue
 ```
 
 取得したディレクトリを Visual Studio Code で開きます。
@@ -28,8 +24,6 @@ cd esp32-platformio-template
 ```bash
 code .
 ```
-
-GitHub の Template Repository として使用する場合は、`Use this template` から新しいリポジトリを作成してください。
 
 ## ESP32を接続
 
@@ -82,25 +76,6 @@ esp32dev
 または、Visual Studio Code 下部の矢印 `→` から書き込めます。
 
 書き込み完了後、ESP32が再起動します。
-
-## LEDの確認
-
-デフォルトでは `GPIO 2` をLEDとして使用します。
-
-設定は以下にあります。
-
-```text
-include/config.hpp
-```
-
-```cpp
-constexpr uint8_t LED_PIN = 2;
-constexpr uint32_t LED_BLINK_INTERVAL_MS = 500;
-```
-
-正常に書き込まれていれば、LEDが約500ms間隔で点滅します。
-
-使用しているESP32ボードでLEDのGPIOが異なる場合は、`LED_PIN` を変更してください。
 
 ## シリアルモニター
 
