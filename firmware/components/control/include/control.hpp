@@ -192,6 +192,7 @@ class Chassis {
   Limits limits_;
   Four target_{};
   std::array<SpeedController, 4> pi_{};
+  std::array<SpeedControllerResult, 4> last_{};
 
 public:
   /**
@@ -212,9 +213,28 @@ public:
    */
   void reset() {
     target_.fill(0);
+    last_ = {};
     for (auto &p : pi_)
       p.reset();
   }
+  /**
+   * @brief 4台すべてへPIゲインを適用し、積分と目標をリセットする。
+   * @return 検証に通ればtrue。失敗時は現在値を変更しない。
+   * @note 出力ゼロの状態（DISARM）で呼ぶこと。判定は呼び出し側の責務。
+   */
+  bool set_gains(const SpeedGains &g) {
+    if (!gains_valid(g))
+      return false;
+    for (auto &p : pi_)
+      p.set_gains(g);
+    reset();
+    return true;
+  }
+  SpeedGains gains() const { return pi_[0].gains(); }
+  /**
+   * @brief 直近のPI計算結果（ログ用）。リセット後はゼロ。
+   */
+  const std::array<SpeedControllerResult, 4> &results() const { return last_; }
   /**
    * @brief 制限後の目標RPMを取得する。
    * @return motor_index順のモーター軸RPM。
@@ -254,7 +274,8 @@ public:
     for (int i = 0; i < 4; i++) {
       float step = limits_.slew_rpm_s * dt;
       target_[i] += std::clamp(rpm[i] * scale - target_[i], -step, step);
-      currents[i] = pi_[i].update(target_[i], measured[i], dt).currentCommand;
+      last_[i] = pi_[i].update(target_[i], measured[i], dt);
+      currents[i] = last_[i].currentCommand;
     }
     return currents;
   }

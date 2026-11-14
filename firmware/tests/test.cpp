@@ -3,8 +3,13 @@
 #include "control_loop.hpp"
 #include "protocol.hpp"
 #include "receiver.hpp"
+#include "service.hpp"
 #include "vectors.hpp"
 #include <cassert>
+#include <map>
+#include <string>
+#include <vector>
+#include "service_vectors.hpp"
 #include <iostream>
 #include <limits>
 using namespace sakura;
@@ -172,5 +177,189 @@ int main() {
   bad[10] = 0;
   bad[11] = 0;
   assert(!decode(bad.data(), 20, malformed));
+
+  // ---- サービス: ゴールデンベクタ ----
+  {
+    auto dec = [&](const char *name, ServiceRequest &r) {
+      const auto &v = service_golden.at(name);
+      return decode_service(v.data(), v.size(), r);
+    };
+    ServiceRequest r;
+    assert(dec("log_start", r) && r.type == ServiceType::LogStart &&
+           r.req_id == 1 && r.rate_hz == 20 && r.lease_ms == 1000);
+    assert(dec("log_stop", r) && r.type == ServiceType::LogStop && r.req_id == 2);
+    assert(dec("param_get", r) && r.type == ServiceType::ParamGet);
+    assert(dec("param_set", r) && r.type == ServiceType::ParamSet &&
+           r.req_id == 4 && r.gains.kp == 1.5f && r.gains.ki == 0.25f &&
+           r.gains.integral_limit == 4000 && r.gains.max_current == 2000);
+    assert(dec("param_save", r) && r.type == ServiceType::ParamSave);
+    assert(dec("param_reset", r) && r.type == ServiceType::ParamReset);
+    // 長さ違い・magic/version違いは拒否
+    auto bad = service_golden.at("param_set");
+    assert(!decode_service(bad.data(), bad.size() - 1, r));
+    bad[2] = 2;
+    assert(!decode_service(bad.data(), bad.size(), r));
+    uint8_t out[service_max_size];
+    SpeedGains g{1.5f, 0.25f, 4000, 2000};
+    size_t n = encode_ack(4, ServiceStatus::Ok, g, out);
+    const auto &ack = service_golden.at("ack_ok");
+    assert(n == ack.size() && std::equal(ack.begin(), ack.end(), out));
+    LogSample s;
+    s.sequence = 7;
+    s.time_ms = 1234;
+    s.state = 1;
+    s.fresh_mask = 11;
+    s.motor = {{{100, -10, 8191, 30, 120, -300, 50},
+                {-200, 20, 0, 31, -220, 400, -60},
+                {0, 0, 1, 0, 0, 0, 0},
+                {32767, -32768, 65535, 255, 32767, 3000, -32768}}};
+    n = encode_sample(s, out);
+    const auto &smp = service_golden.at("log_sample");
+    assert(n == smp.size() && std::equal(smp.begin(), smp.end(), out));
+  }
+  // ---- ゲイン検証 ----
+  {
+    SpeedGains g;
+    assert(gains_valid(g));
+    for (int k = 0; k < 8; k++) {
+      SpeedGains b;
+      if (k == 0) b.kp = NAN;
+      if (k == 1) b.ki = -0.1f;
+      if (k == 2) b.kp = KP_CEILING + 0.1f;
+      if (k == 3) b.ki = KI_CEILING + 0.1f;
+      if (k == 4) b.max_current = 3001;
+      if (k == 5) b.integral_limit = INFINITY;
+      if (k == 6) b.integral_limit = INTEGRAL_LIMIT_CEILING + 1;
+      if (k == 7) b.max_current = -1;
+      assert(!gains_valid(b));
+    }
+    // ゲイン変更は挙動へ反映され、積分と目標をリセットする。
+    Chassis c(fixture(), {1, 1, 1, 100, 50, .08});
+    c.update({1, 0, 0}, {}, .1, true);
+    assert(c.results()[2].integral != 0);
+    SpeedGains half{0.5f, 0.0f, 8000, 3000};
+    assert(c.set_gains(half) && c.gains() == half);
+    assert(c.results()[2].integral == 0 && c.targets()[2] == 0);
+    auto cur = c.update({1, 0, 0}, {}, .1, true); // error=5 → 0.5*5=2.5→3
+    assert(cur[2] == 3 || cur[2] == 2);
+    SpeedGains bad{NAN, 0, 0, 0};
+    assert(!c.set_gains(bad) && c.gains() == half);
+    // 電流上限は実際の指令を制限する。
+    assert(c.set_gains({1.0f, 0.2f, 8000, 100}));
+    Chassis c2(fixture(), {1, 1, 1, 1e6f, 1e9f, .08});
+    c2.set_gains({1.0f, 0.2f, 8000, 100});
+    assert(c2.update({1, 0, 0}, {}, 1, true)[2] == 100);
+  }
+  // ---- ServiceHandler ----
+  {
+    struct MockStore : ParamStore {
+      SpeedGains saved{};
+      bool has = false, fail = false;
+      bool load(SpeedGains &g) override { if (!has) return false; g = saved; return true; }
+      bool save(const SpeedGains &g) override { if (fail) return false; saved = g; has = true; return true; }
+      bool erase() override { has = false; return !fail; }
+    } store;
+    Receiver rx2("127.0.0.1", 1234);
+    Chassis ch(fixture(), {1, 1, 1, 100, 10000, .08});
+    Feedback fb2;
+    ServiceHandler svc(rx2, ch, fb2, store);
+    uint8_t out[service_max_size];
+    auto call = [&](const char *name, uint64_t now) {
+      const auto &v = service_golden.at(name);
+      size_t n = svc.handle(v.data(), v.size(), now, out);
+      assert(n == ack_size);
+      return static_cast<ServiceStatus>(out[6]);
+    };
+    // Disarm: SET適用
+    assert(call("param_set", 0) == ServiceStatus::Ok);
+    assert(ch.gains() == SpeedGains({1.5f, 0.25f, 4000, 2000}));
+    assert(getf(out + 7) == 1.5f && get16(out + 4) == 4);
+    // SAVE → 保存、ブート時のload_savedで復元
+    assert(call("param_save", 1) == ServiceStatus::Ok && store.has);
+    ch.set_gains(SpeedGains{});
+    assert(svc.load_saved() && ch.gains().kp == 1.5f);
+    // 保存値が不正なら既定値のまま
+    ch.set_gains(SpeedGains{});
+    store.saved.kp = NAN;
+    assert(!svc.load_saved() && ch.gains() == SpeedGains{});
+    store.saved.kp = 1.5f;
+    // RESET: 既定値へ戻し保存を消去
+    assert(call("param_set", 2) == ServiceStatus::Ok);
+    assert(call("param_reset", 3) == ServiceStatus::Ok && !store.has &&
+           ch.gains() == SpeedGains{});
+    // 保存失敗はStorageError
+    store.fail = true;
+    assert(call("param_save", 4) == ServiceStatus::StorageError);
+    store.fail = false;
+    // Disarm以外ではSET/RESETを拒否し、値は変えない
+    assert(call("param_set", 5) == ServiceStatus::Ok);
+    rx2.safety.accept({0, Action::Disarm, {}}, 5, true);
+    rx2.safety.accept({1, Action::Arm, {}}, 6, true);
+    assert(rx2.safety.state == State::Armed);
+    SpeedGains before = ch.gains();
+    ch.set_gains(SpeedGains{}); // 後続の確認用に既定へ
+    before = ch.gains();
+    assert(call("param_set", 7) == ServiceStatus::NotDisarmed);
+    assert(call("param_reset", 7) == ServiceStatus::NotDisarmed);
+    assert(ch.gains() == before);
+    // GET/LOGはArmed中も可。サービス要求はFAULTにしない。
+    assert(call("param_get", 8) == ServiceStatus::Ok);
+    assert(rx2.safety.state == State::Armed);
+    // 不正なSET値はInvalidValue。不正パケットはFAULTにならない。
+    {
+      auto v = service_golden.at("param_set");
+      v[6] = 0x7f; v[7] = 0xc0; v[8] = 0; v[9] = 0; // kp = NaN
+      rx2.safety.fault();
+      rx2.safety.accept({2, Action::Disarm, {}}, 9, true);
+      assert(rx2.safety.state == State::Disarm);
+      size_t n = svc.handle(v.data(), v.size(), 9, out);
+      assert(n == ack_size && out[6] == uint8_t(ServiceStatus::InvalidValue));
+      assert(ch.gains() == SpeedGains{});
+      uint8_t junk[3] = {'S', 'C', 1};
+      assert(svc.handle(junk, 3, 9, out) == 0);
+      uint8_t unk[6] = {'S', 'C', 1, 99, 0, 9};
+      assert(svc.handle(unk, 6, 9, out) == ack_size &&
+             out[6] == uint8_t(ServiceStatus::UnknownType));
+      uint8_t shortp[7] = {'S', 'C', 1, 4, 0, 9, 0};
+      assert(svc.handle(shortp, 7, 9, out) == ack_size &&
+             out[6] == uint8_t(ServiceStatus::BadRequest));
+      assert(rx2.safety.state == State::Disarm);
+    }
+    // ログ: 要求時のみ。開始前は無送信。
+    uint8_t buf[service_max_size];
+    assert(!svc.logging() && svc.sample(100, buf) == 0);
+    assert(call("log_start", 100) == ServiceStatus::Ok && svc.logging()); // 20Hz, lease1000
+    assert(svc.sample(100, buf) == sample_size);
+    assert(get16(buf + 4) == 0 && read32(buf + 6) == 0 && read32(buf + 10) == 100);
+    assert(svc.sample(120, buf) == 0);       // 50ms未満は送らない
+    assert(svc.sample(150, buf) == sample_size && read32(buf + 6) == 1);
+    assert(svc.sample(1101, buf) == 0 && !svc.logging()); // lease切れで停止
+    assert(call("log_start", 2000) == ServiceStatus::Ok);
+    assert(call("log_stop", 2001) == ServiceStatus::Ok && !svc.logging());
+    assert(svc.sample(2100, buf) == 0);
+    // rate/leaseの範囲外は拒否
+    {
+      auto v = service_golden.at("log_start");
+      v[6] = 0;
+      assert(svc.handle(v.data(), v.size(), 3000, out) == ack_size &&
+             out[6] == uint8_t(ServiceStatus::InvalidValue) && !svc.logging());
+      v[6] = ServiceHandler::max_rate_hz + 1;
+      svc.handle(v.data(), v.size(), 3000, out);
+      assert(out[6] == uint8_t(ServiceStatus::InvalidValue));
+    }
+    // 受信フィードバックがログに載る（fresh_maskと値）
+    for (int i = 0; i < 4; i++) {
+      if (i == 2) continue;
+      CanFrame f;
+      f.id = 0x201 + i;
+      f.size = 8;
+      f.data[2] = 0xff; f.data[3] = 0x9c; // -100rpm
+      fb2.receive(f, 4000);
+    }
+    assert(call("log_start", 4000) == ServiceStatus::Ok);
+    assert(svc.sample(4000, buf) == sample_size);
+    assert(buf[15] == 0b1011 && buf[14] == uint8_t(State::Disarm));
+    assert(int16_t(get16(buf + 16)) == -100);
+  }
   std::cout << "All host control checks passed\n";
 }

@@ -27,3 +27,32 @@ sequenceは送信パケットごとに1増加。`0 < uint32(new-old) < 2^31` の
 このバージョンは時刻・セッションnonce・MACを持たず、初回に届くパケットの実年齢やなりすましを検証できません。単純なsequence検証は暗号学的リプレイ保護ではありません。Wi-Fi接続済みを駆動許可とみなしてはいけません。実運用の認証と期限検証は次バージョンで追加し、その完成までapp_mainは出力禁止です。
 
 `golden_vectors.json` をPythonが直接読み、C++はCMake時に同じJSONからfixtureを生成してエンコード・デコードを照合します。共有JSONの変更は両言語のテストで検証します。
+
+## サービスパケット（ログ・PIゲイン、magic `SC`）
+
+走行用v1（`SA`、20バイト）とは別系統です。`SA`のdecode・FAULT規則・sequence規則は変更しません。サービスパケットは`Safety`へ渡さず、**不正でもFAULTにしません**（ACKのstatusで返すか黙って無視）。信頼済み送信元以外は無視します。big endian、1データグラム（最大128B）。
+
+ヘッダー6B: `S` `C` ver(=1) type(u8) req_id(u16)。req_idはPiが単調増加させ、ACKが同じ値を返します。
+
+| type | 方向 | payload |
+|---|---|---|
+| 1 LOG_START | Pi→ESP | rate_hz u8 (1..50), lease_ms u16 (1..5000) |
+| 2 LOG_STOP | Pi→ESP | なし |
+| 3 PARAM_GET | Pi→ESP | なし |
+| 4 PARAM_SET | Pi→ESP | kp, ki, integral_limit, max_current（f32×4） |
+| 5 PARAM_SAVE | Pi→ESP | なし。現在のRAM値をNVSへ保存 |
+| 6 PARAM_RESET | Pi→ESP | なし。既定値へ戻しNVS保存値を消去 |
+| 0x81 ACK | ESP→Pi | status u8 + 現在のゲインf32×4（23B） |
+| 0x82 LOG_SAMPLE | ESP→Pi | seq u32, t_ms u32, state u8, fresh_mask u8, モーター×4（68B） |
+
+モーター1台13B: rpm i16, current i16, angle u16, temperature u8, target_rpm i16, command i16, integral i16（target・integralは丸めて飽和）。fresh_maskのbit iはモーターiのフィードバックが100ms以内。stateは0=DISARM,1=ARMED,2=STOP,3=FAULT。
+
+status: 0 OK, 1 BAD_REQUEST(長さ等), 2 NOT_DISARMED, 3 INVALID_VALUE, 4 STORAGE_ERROR, 5 UNKNOWN_TYPE。
+
+- **ログは要求時のみ。** LOG_STARTはleaseを持ち、lease_ms以内に再送（更新）しないとESP32は送信を止めます。Pi側が落ちても垂れ流しません。LOG_SAMPLEのseqで欠落を検知します。ログは助言用で、安全判定の入力にしません。
+- **PARAM_SET / PARAM_RESETはDISARMの時だけ。** それ以外はNOT_DISARMED。適用時は全PIの積分と目標をリセットします。値は有限・0以上で、`kp<=10, ki<=5, integral_limit<=8000, max_current<=3000`（コンパイル時上限。C620の±3000クランプ以下）。1項目でも範囲外なら全体を拒否し現在値を保ちます。
+- 保存はPARAM_SAVEの明示操作のみ。起動時にNVSから読み、magic・CRC・範囲検証に失敗したら既定値（夏の参考値）を使います。
+- Pi側は未ACKの要求を同じreq_idで再送（0.5秒×3回）。SET/SAVE/RESETは冪等です。
+- **認証・リプレイ保護はありません。** 書き込み系コマンドが無認証チャネル上にあります。ベンチ限定で、実機駆動経路へ接続する前に認証が必須です。
+
+`service_golden_vectors.json`をPythonとC++が共有して検証します。

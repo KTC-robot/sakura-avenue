@@ -43,6 +43,7 @@ motor_rpm[motor_index] = wheel_rpm × g × motor_sign
 - タイマー起点の周期制御、watchdog、タスク停止時の物理インターロック
 - 認証されたセッションと操縦者のニュートラル/再許可操作
 - 設定検証成功と物理許可の両方がなければTWAIを開始しない
+- `ServiceHandler`/`NvsParamStore`の結線（`UdpSocket::poll`へのhandler渡し、制御tickごとの`send_log`、起動時の`NvsParamStore::begin`と`load_saved`）。部品は実装済みだが`app_main`は何も起動しない
 - CAN bus-offではゼロフレームも届かないので電源遮断を実行
 
 TWAIは1フレームだけを送信中として保持し、完了通知までバッファーを再利用しません。キュー詰まり・受信オーバーフロー・送信エラーをラッチし、復旧しても非ゼロ送信は再開しません。送信完了・bus-off時の実際の遅延と停止到達は未検証です。機体側に独立した非常停止とC620電源遮断を必ず用意してください。

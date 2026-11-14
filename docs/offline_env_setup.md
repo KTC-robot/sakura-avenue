@@ -9,7 +9,7 @@
 対象Piのcheckoutで次を行います。
 
 ```bash
-cd pi
+cd raspberryPi
 uv sync --locked --extra controller
 uv run ruff check .
 uv run pytest -q
@@ -20,7 +20,7 @@ uv run pytest -q
 ## 2. 接続を切る前にキャッシュを確認する
 
 ```bash
-# pi/ 内。ネットワークを使わず依存が揃うか確認する
+# raspberryPi/ 内。ネットワークを使わず依存が揃うか確認する
 uv sync --locked --offline --extra controller
 uv run --offline --no-sync sakura-pilot --help
 ```

@@ -1,0 +1,102 @@
+[
+ {
+  "name": "log_start",
+  "type": 1,
+  "req_id": 1,
+  "rate_hz": 20,
+  "lease_ms": 1000,
+  "hex": "5343010100011403e8"
+ },
+ {
+  "name": "log_stop",
+  "type": 2,
+  "req_id": 2,
+  "hex": "534301020002"
+ },
+ {
+  "name": "param_get",
+  "type": 3,
+  "req_id": 3,
+  "hex": "534301030003"
+ },
+ {
+  "name": "param_set",
+  "type": 4,
+  "req_id": 4,
+  "kp": 1.5,
+  "ki": 0.25,
+  "integral_limit": 4000.0,
+  "max_current": 2000.0,
+  "hex": "5343010400043fc000003e800000457a000044fa0000"
+ },
+ {
+  "name": "param_save",
+  "type": 5,
+  "req_id": 5,
+  "hex": "534301050005"
+ },
+ {
+  "name": "param_reset",
+  "type": 6,
+  "req_id": 6,
+  "hex": "534301060006"
+ },
+ {
+  "name": "ack_ok",
+  "type": 129,
+  "req_id": 4,
+  "status": 0,
+  "kp": 1.5,
+  "ki": 0.25,
+  "integral_limit": 4000.0,
+  "max_current": 2000.0,
+  "hex": "534301810004003fc000003e800000457a000044fa0000"
+ },
+ {
+  "name": "log_sample",
+  "type": 130,
+  "sequence": 7,
+  "time_ms": 1234,
+  "state": 1,
+  "fresh_mask": 11,
+  "motors": [
+   {
+    "rpm": 100,
+    "current": -10,
+    "angle": 8191,
+    "temperature": 30,
+    "target_rpm": 120,
+    "command": -300,
+    "integral": 50
+   },
+   {
+    "rpm": -200,
+    "current": 20,
+    "angle": 0,
+    "temperature": 31,
+    "target_rpm": -220,
+    "command": 400,
+    "integral": -60
+   },
+   {
+    "rpm": 0,
+    "current": 0,
+    "angle": 1,
+    "temperature": 0,
+    "target_rpm": 0,
+    "command": 0,
+    "integral": 0
+   },
+   {
+    "rpm": 32767,
+    "current": -32768,
+    "angle": 65535,
+    "temperature": 255,
+    "target_rpm": 32767,
+    "command": 3000,
+    "integral": -32768
+   }
+  ],
+  "hex": "53430182000000000007000004d2010b0064fff61fff1e0078fed40032ff38001400001fff240190ffc4000000000001000000000000007fff8000ffffff7fff0bb88000"
+ }
+]

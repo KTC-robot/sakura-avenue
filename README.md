@@ -17,7 +17,7 @@ Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDP�
 
 ## 構成
 
-- `pi/`: uv管理のPythonパッケージ、evdevアダプター、入力モデル、マッパー、UDP、テスト
+- `raspberryPi/`: uv管理のPythonパッケージ、evdevアダプター、入力モデル、マッパー、UDP、テスト
 - `firmware/`: ESP-IDF 5.5.1 / ESP32-C5プロジェクト。`components/control` は純粋C++、`protocol` は共通パケット、`device` はC620とTWAI、`network` はUDPと制御ループ
 - `protocol/`: バイナリー仕様とPython/C++共通テストベクトル
 - `docs/`: セットアップ、ネットワーク、安全設計、配線、移植記録、検証結果
@@ -30,12 +30,17 @@ Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDP�
 
 ```bash
 git clone https://github.com/KTC-robot/sakura-avenue.git
-cd sakura-avenue/pi
+cd sakura-avenue/raspberryPi
 uv sync --locked --extra controller
 uv run ruff check .
 uv run ruff format --check .
 uv run pytest -q
 uv run sakura-pilot --verbose   # 入力プレビュー。モーター駆動なし
+# フィードバックログ表示とPIゲイン変更（ESP32の信頼済み送信元portを指定）
+uv run sakura-tune --host <ESP32> --port <PORT> --source-port <PORT> monitor --csv log.csv
+uv run sakura-tune --host <ESP32> --port <PORT> --source-port <PORT> param set --kp 1.2 --save
+# 操縦と同じプロセスで実行する場合（標準入力に monitor / param ... を入力）
+uv run sakura-pilot --host <ESP32> --port <PORT> --source-port <PORT> --console
 ```
 
 ```bash

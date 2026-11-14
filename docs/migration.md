@@ -10,11 +10,11 @@
 
 ## 対応表
 
-表中の `controller/...`、`command.py`、`main.py` は `pi/src/sakura_avenue/` 配下です。コードコメントは夏を参考に、Python docstringとC++ Doxygenを区別して簡潔に記載します。[開発・コメント規約](development.md)に、単位・戻り値・安全上の副作用の書き方をまとめています。
+表中の `controller/...`、`command.py`、`main.py` は `raspberryPi/src/sakura_avenue/` 配下です。コードコメントは夏を参考に、Python docstringとC++ Doxygenを区別して簡潔に記載します。[開発・コメント規約](development.md)に、単位・戻り値・安全上の副作用の書き方をまとめています。
 
 | 元ファイル（基準ディレクトリ） | 移植先 | 変更 |
 |---|---|---|
-| `src/unagifestival/tools/ps_controller/enum.py` | `pi/src/sakura_avenue/controller/enum.py` | 型と軸/ボタン対応を継承。Linuxイベント番号を純粋Python定義にしてevdev依存を境界へ限定 |
+| `src/unagifestival/tools/ps_controller/enum.py` | `raspberryPi/src/sakura_avenue/controller/enum.py` | 型と軸/ボタン対応を継承。Linuxイベント番号を純粋Python定義にしてevdev依存を境界へ限定 |
 | 同 `model.py` | `controller/model.py` | 軸範囲/入力イベント/状態を移植、ボタン状態を追加 |
 | 同 `device.py` | `controller/device.py` | 機能/名前のスコア、自動検出、select/evdev入力を移植。非ゲームパッド排除、未選択handle解放、SYN_DROPPED停止を追加 |
 | 同 `handler/handler.py` と `handler/constants.py` | `command.py`、`main.py` | 中央/半範囲正規化、deadzone 0.08、trigger 0.1、slow 0.25、イベントログを分離。IM920/servo依存を除去 |

@@ -67,6 +67,14 @@ public:
     return true;
   }
   /**
+   * @brief 1台分の受信期限を検査する。
+   * @param i モーター添字0〜3。
+   */
+  bool fresh(int i, uint64_t now, uint64_t timeout_ms = 100) const {
+    return i >= 0 && i < 4 && seen_[i] && now >= time_[i] &&
+           now - time_[i] <= timeout_ms;
+  }
+  /**
    * @brief 全モーターの受信期限を検査する。
    * @param now 単調時計[ms]。
    * @return 4台すべて受信済みかつ期限内ならtrue。

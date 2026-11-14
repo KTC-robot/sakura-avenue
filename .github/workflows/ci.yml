@@ -12,9 +12,9 @@ jobs:
           version: "0.11.17"
           python-version: "3.12"
       - run: uv sync --locked --extra controller
-        working-directory: pi
+        working-directory: raspberryPi
       - run: uv run ruff check . && uv run ruff format --check . && uv run pytest -q
-        working-directory: pi
+        working-directory: raspberryPi
   host-cpp:
     runs-on: ubuntu-latest
     steps:

@@ -25,6 +25,23 @@ class UdpTransport:
         """パケットを符号化して送信する。到達は保証しない。"""
         self.socket.sendto(encode(packet), self.destination)
 
+    def send_raw(self, data: bytes) -> None:
+        """符号化済みbytesを送信先へ送る。到達は保証しない。"""
+        self.socket.sendto(data, self.destination)
+
+    def recv(self, timeout: float) -> bytes | None:
+        """送信先からの1データグラムを受信する。
+
+        Returns:
+            送信先(host, port)と一致するデータグラム。時間切れ・他の送信元はNone。
+        """
+        self.socket.settimeout(max(timeout, 0.0))
+        try:
+            data, source = self.socket.recvfrom(2048)
+        except (TimeoutError, BlockingIOError):
+            return None
+        return data if source == self.destination else None
+
     def close(self) -> None:
         """ソケットを解放する。"""
         self.socket.close()

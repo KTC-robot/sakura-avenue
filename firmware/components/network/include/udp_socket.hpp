@@ -4,6 +4,7 @@
  */
 #pragma once
 #include "receiver.hpp"
+#include "service.hpp"
 namespace sakura {
 // UDPベンチアダプター。Wi-Fi設定は分離し、app_mainでは開始しない。
 class UdpSocket {
@@ -25,6 +26,13 @@ public:
    * @param healthy 全体の健全性。
    * @return ソケット処理を継続できる場合true。
    */
-  bool poll(Receiver &receiver, uint64_t now, bool healthy);
+  bool poll(Receiver &receiver, uint64_t now, bool healthy,
+            ServiceHandler *service = nullptr);
+  /**
+   * @brief ログ送信期限が来ていれば信頼済みPeerへ1件送る。
+   * ノンブロッキング。送信失敗（EAGAIN等）は破棄し制御周期を遅らせない。
+   */
+  void send_log(const Receiver &receiver, ServiceHandler &service,
+                uint64_t now);
 };
 } // namespace sakura

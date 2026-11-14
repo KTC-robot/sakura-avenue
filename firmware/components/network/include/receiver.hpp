@@ -23,6 +23,12 @@ public:
     if (peer.empty() || port == 0)
       throw std::invalid_argument("explicit trusted peer required");
   }
+  /// @brief 信頼済みPeer(IP/port)と一致するか。
+  bool is_peer(const std::string &ip, uint16_t port) const {
+    return ip == peer_ && port == port_;
+  }
+  const std::string &peer_ip() const { return peer_; }
+  uint16_t peer_port() const { return port_; }
   /**
    * @brief 受信指令を検証し、安全状態と要求値を更新する。
    * @param now 単調時計[ms]。

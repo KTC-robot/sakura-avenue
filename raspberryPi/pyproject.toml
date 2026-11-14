@@ -7,6 +7,7 @@ dependencies = []
 controller = ["evdev>=1.9.3,<2; sys_platform == 'linux'"]
 [project.scripts]
 sakura-pilot = "sakura_avenue.main:main"
+sakura-tune = "sakura_avenue.tune:main"
 [build-system]
 requires = ["hatchling>=1.27,<2"]
 build-backend = "hatchling.build"
