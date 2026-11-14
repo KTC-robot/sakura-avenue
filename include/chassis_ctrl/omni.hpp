@@ -1,0 +1,45 @@
+#pragma once
+
+/**
+ * @file omni.hpp
+ * @brief 車体の前後・横・旋回指令を4輪の出力へ変換する純粋計算を定義する。
+ */
+
+#include "chassis_ctrl/constants.hpp"
+
+/**
+ * @brief Omni合成前の車輪別成分。
+ *
+ * wheel gainをchassis_ctrl側で既存順序のまま適用できるよう、
+ * 前後・横移動・旋回の成分を分けて保持する。
+ */
+struct OmniComponents{
+    float forward[CanConfig_chassis_ctrl::NUM_WHEELS];  ///< 前後移動成分。
+    float strafe[CanConfig_chassis_ctrl::NUM_WHEELS];   ///< 横移動成分。
+    float yaw[CanConfig_chassis_ctrl::NUM_WHEELS];      ///< 旋回成分。
+};
+
+/**
+ * @brief normalization後の車輪別Omni出力。
+ */
+struct OmniOutput {
+  float wheel[CanConfig_chassis_ctrl::NUM_WHEELS];  ///< 正規化済み出力。
+};
+
+/**
+ * @brief 車体指令から車輪別のOmni成分を計算する。
+ *
+ * @param vx 前後方向指令。
+ * @param vy 横方向指令。
+ * @param wz 旋回方向指令。
+ * @return 車輪ごとの前後・横移動・旋回成分。
+ */
+OmniComponents calculateOmniComponents(float vx, float vy, float wz);
+
+/**
+ * @brief 車輪別成分を合成し、最大絶対値が1.0以下になるよう正規化する。
+ *
+ * @param components 合成対象の車輪別成分。
+ * @return 正規化済みの4輪出力。
+ */
+OmniOutput combineAndNormalizeOmni(const OmniComponents& components);
