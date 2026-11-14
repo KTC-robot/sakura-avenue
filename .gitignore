@@ -8,10 +8,8 @@ __pycache__/
 *.egg-info/
 config.local.*
 secrets.*
-firmware/sdkconfig
-firmware/sdkconfig.old
-firmware/build/
 build/
+firmware/
 
 # OS metadata
 .DS_Store

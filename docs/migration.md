@@ -10,16 +10,16 @@
 
 ## 対応表
 
-表中の `controller/...`、`command.py`、`main.py` は `pi/src/sakura_avenue/` 配下です。コードコメントは夏を参考に、Python docstringとC++ Doxygenを区別して簡潔に記載します。[開発・コメント規約](development.md)に、単位・戻り値・安全上の副作用の書き方をまとめています。
+表中の `controller/...`、`command.py`、`main.py` は `src/sakura_avenue/` 配下です。コードコメントは夏を参考に、Python docstringとC++ Doxygenを区別して簡潔に記載します。[開発・コメント規約](development.md)に、単位・戻り値・安全上の副作用の書き方をまとめています。
 
 | 元ファイル（基準ディレクトリ） | 移植先 | 変更 |
 |---|---|---|
-| `src/unagifestival/tools/ps_controller/enum.py` | `pi/src/sakura_avenue/controller/enum.py` | 型と軸/ボタン対応を継承。Linuxイベント番号を純粋Python定義にしてevdev依存を境界へ限定 |
+| `src/unagifestival/tools/ps_controller/enum.py` | `src/sakura_avenue/controller/enum.py` | 型と軸/ボタン対応を継承。Linuxイベント番号を純粋Python定義にしてevdev依存を境界へ限定 |
 | 同 `model.py` | `controller/model.py` | 軸範囲/入力イベント/状態を移植、ボタン状態を追加 |
 | 同 `device.py` | `controller/device.py` | 機能/名前のスコア、自動検出、select/evdev入力を移植。非ゲームパッド排除、未選択handle解放、SYN_DROPPED停止を追加 |
 | 同 `handler/handler.py` と `handler/constants.py` | `command.py`、`main.py` | 中央/半範囲正規化、deadzone 0.08、trigger 0.1、slow 0.25、イベントログを分離。IM920/servo依存を除去 |
 | 同 `im920/model.py` のDriveCommand概念 | `command.py` と C++ `control.hpp` | vx/vy/wzを継承、±127→±1へ変更。ネットワークモデルとは別クラス |
-| `platform/chassis_ctrl/speed_controller.hpp/.cpp` | `firmware/components/control/include/speed_controller.hpp` と `speed_controller.cpp` | PI計算・積分・飽和時anti-windup・resetを直接移植。include変更、非有限値/不正dtでresetを追加 |
+| `platform/chassis_ctrl/speed_controller.hpp/.cpp` | `platform/control/speed_controller.hpp` と `speed_controller.cpp` | PI計算・積分・飽和時anti-windup・resetを直接移植。include変更、非有限値/不正dtでresetを追加 |
 | 同 `constants.hpp` | `control/include/reference_gains.hpp` | Kp=1, Ki=.2、積分上限8000、電流指令3000を参考値として選択移植。機体で調整済みではない |
 | `platform/device/c620_driver.cpp/.hpp` | `device/include/c620.hpp` と `twai_bus.cpp/.hpp` | 0x200/0x201..204、big endian、RPM/電流/温度/角度、freshnessを抽出。Arduinoと旧TWAI/固定GPIOを除去し新APIアダプターへ分離 |
 | `platform/chassis_ctrl/chassis_ctrl.cpp` | `control/include/control.hpp` | 正規化→RPM制限→slew→PIの処理構造を継承。メカナム符号表・取付反転・段差制御を移植せず汎用オムニへ置換 |

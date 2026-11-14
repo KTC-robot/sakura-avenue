@@ -1,6 +1,6 @@
 # 配線準備（GPIO未確定）
 
-現時点では具体的なPi/ESP32-C5ボード、GPIO、トランシーバー型番、給電方法を確定しません。`firmware/config.example.json` は未設定の一覧であり実機設定ではありません。
+現時点では具体的なPi/ESP32-C5ボード、GPIO、トランシーバー型番、給電方法を確定しません。`platform/config.example.json` は未設定の一覧であり実機設定ではありません。
 
 接続の責務は ESP32-C5 TWAI TX/RX → 外付けCANトランシーバー → CAN_H/CAN_L → C620 ×4 です。Classic CAN 1Mbps。3.3Vロジックへの適合、GND基準、絶縁/電源、終端抵抗、配線長・分岐長は採用部品の資料に基づき確認してください。モーター電源をC5のGPIOから直接供給しません。
 

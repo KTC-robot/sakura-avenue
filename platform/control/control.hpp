@@ -3,7 +3,7 @@
  * @brief 車体要求、安全状態、配置可変の4輪オムニとPI制御の結合を定義する。
  */
 #pragma once
-#include "speed_controller.hpp"
+#include "control/speed_controller.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>

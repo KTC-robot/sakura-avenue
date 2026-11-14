@@ -1,7 +1,7 @@
 // Adapted from KTC-robot/UnagiFestival @ 42c839d; see docs/migration.md.
-#include "speed_controller.hpp"
+#include "control/speed_controller.hpp"
 
-#include "reference_gains.hpp"
+#include "control/reference_gains.hpp"
 
 #include <algorithm>
 #include <cmath>

@@ -1,8 +1,8 @@
-#include "c620.hpp"
-#include "control.hpp"
-#include "control_loop.hpp"
-#include "protocol.hpp"
-#include "receiver.hpp"
+#include "device/c620.hpp"
+#include "control/control.hpp"
+#include "network/control_loop.hpp"
+#include "protocol/protocol.hpp"
+#include "network/receiver.hpp"
 #include "vectors.hpp"
 #include <cassert>
 #include <iostream>

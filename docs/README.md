@@ -19,7 +19,7 @@
 |---|---|
 | `docs/offline_env_setup.md` | AP運用前に依存を用意する考え方を継承。Pi 5/aarch64前提や夏のtask/依存一覧は転用しない |
 | `docs/im920sl_pi_esp_setup.md` | IM920配線・無線設定は使用しない。春は5GHz Wi-Fi/UDPとしてnetwork.mdへ分離 |
-| `docs/platform_change.md` とPlatformIO設定 | 開発対象を明示する考え方を継承。春の正規ビルドはESP-IDF/esp32c5 |
+| `docs/platform_change.md` とPlatformIO設定 | 開発対象を明示する考え方を継承。春の正規ビルドはPlatformIO(Arduino)/esp32c5 |
 | PS入力のdocstring | 短い要約を基準に、必要な引数・戻り値の説明だけを残す |
 | PI/C620のヘッダー | 日本語Doxygenと単位・戻り値・副作用の説明を継承 |
 
