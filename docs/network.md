@@ -18,6 +18,8 @@ PiがAPになる場合も、Pi/C5が外部ルーターのSTAになる場合も�
 - OS/ルーターで送信元制限を行う。受信クラスも送信元IPv4とportを照合する。
 - IP/port制限はなりすまし防止には不十分。UDP v1は暗号学的認証・改ざん検出・新規セッションnonceを持たないため**隔離ベンチ専用**。
 - 実機運転へ移る前に、事前共有鍵によるMACまたは検証済みの認証付き輸送、チャレンジnonce/セッションID、受信期限とリプレイ対策を追加する。独自暗号を発明しない。
+- Wi-Fi資格情報はビルド時固定で、実行時に書き換えない。`firmware/sdkconfig.local.example` を `sdkconfig.local` にコピーして実値を入れ(`chmod 600`)、`pio run` でビルドする(`platformio.ini` が `sdkconfig.defaults;sdkconfig.local` を読み込む)。`sdkconfig.local` と生成 `sdkconfig*`(`sdkconfig.esp32c5` を含む)はGit管理外。`sdkconfig.defaults` に実値を書かない。
+- 資格情報は生成elf/binに平文で入る。`firmware/build/` や書き込み済みイメージを共有・アップロードしない。フラッシュ暗号化はeFuseを焼く不可逆操作のため、有効化は実機方針を決めてから別途行う。
 - 秘密情報はOS、ローカル設定または私有ESP-IDF設定で管理する。`config.local.*`、`secrets.*`、`sdkconfig` はignore対象。CIログへ資格情報を出さない。
 - 通信再開やIP取得イベントでARMしない。物理許可・ニュートラル・明示ARMを独立して確認する。
 

@@ -1,0 +1,7 @@
+# コピーして sdkconfig.local を作り実値を入れる(sdkconfig.localはGit管理外)。
+#   cp sdkconfig.local.example sdkconfig.local
+#   chmod 600 sdkconfig.local
+#   idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.local" reconfigure build
+CONFIG_SAKURA_WIFI_SSID="CHANGE_ME"
+CONFIG_SAKURA_WIFI_PASSWORD="CHANGE_ME"
+CONFIG_SAKURA_WIFI_COUNTRY="JP"

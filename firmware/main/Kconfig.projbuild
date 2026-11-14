@@ -1,0 +1,20 @@
+menu "Sakura Wi-Fi (private)"
+
+    config SAKURA_WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+        help
+            実値はGit管理外のsdkconfig.localにのみ書く。
+
+    config SAKURA_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+        help
+            実値はGit管理外のsdkconfig.localにのみ書く。
+            ビルド成果物(elf/bin)に平文で含まれるため配布しない。
+
+    config SAKURA_WIFI_COUNTRY
+        string "Wi-Fi country code"
+        default "JP"
+
+endmenu

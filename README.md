@@ -18,15 +18,15 @@ Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDP�
 ## 構成
 
 - `raspberryPi/`: uv管理のPythonパッケージ、evdevアダプター、入力モデル、マッパー、UDP、テスト
-- `firmware/`: ESP-IDF 5.5.1 / ESP32-C5プロジェクト。`components/control` は純粋C++、`protocol` は共通パケット、`device` はC620とTWAI、`network` はUDPと制御ループ
+- `firmware/`: ESP-IDF 5.5.x(PlatformIO)/ ESP32-C5プロジェクト。`components/control` は純粋C++、`protocol` は共通パケット、`device` はC620とTWAI、`network` はUDPと制御ループ
 - `protocol/`: バイナリー仕様とPython/C++共通テストベクトル
-- `docs/`: セットアップ、ネットワーク、安全設計、配線、移植記録、検証結果
-- `legacy/arduino-template/`: 元のArduino/PlatformIOテンプレートの保存用。C5用のビルド対象ではありません
+- `docs/`: セットアップ、ネットワーク、安全設計、配線
+- `archive/`: 過去の資料(夏からの移植記録、旧検証記録、旧Arduinoテンプレート)。現行では使いません
 - `.github/workflows/ci.yml`: Python解析・テスト、ホストC++、C5ビルド
 
 ## 開発を始める
 
-必要環境: Git、Python 3.12以上、uv、ホストC++17コンパイラー、CMake 3.19以上。C5ビルドにはESP-IDF **v5.5.1** または同タグの公式Dockerイメージを使います。
+必要環境: Git、Python 3.12以上、uv、ホストC++17コンパイラー、CMake 3.19以上。C5ビルドにはPlatformIO(`pio`)を使います。ESP-IDFは自動取得されます。
 
 ```bash
 git clone https://github.com/KTC-robot/sakura-avenue.git
@@ -49,15 +49,16 @@ cmake -S firmware/tests -B build/host -DCMAKE_BUILD_TYPE=Debug
 cmake --build build/host
 ctest --test-dir build/host --output-on-failure
 
-# ESP-IDF v5.5.1 の export.sh を読み込んだシェルで
+# PlatformIO (CLI または VS Code 拡張)。初回は ESP-IDF 等を自動取得する
 cd firmware
-idf.py set-target esp32c5
-idf.py build
+pio run                  # ビルド
+pio run -t upload        # 書き込み
+pio device monitor       # シリアルモニター
 ```
 
 ドキュメントの読み順と夏の資料との対応は [docs一覧](docs/README.md)を参照してください。
 
-詳しくは [Piセットアップ](docs/setup_pi.md)、[ESP32-C5セットアップ](docs/setup_esp32c5.md)、[検証記録](docs/validation.md)を参照してください。今回、実機への書き込みは行いません。
+詳しくは [Piセットアップ](docs/setup_pi.md)、[ESP32-C5セットアップ](docs/setup_esp32c5.md)を参照してください。今回、実機への書き込みは行いません。
 
 ## 通信と安全
 
@@ -73,4 +74,4 @@ Pi/開発ボード型番、車輪位置・駆動方向・半径・実減速比�
 
 5GHz Wi-Fiの接続・切断イベントの実タスクへの統合、アプリケーション認証、ARM操作UI、設定ローダー、実機制御タスクの開始、物理インターロック、PI調整、実機検証は今後の作業です。初期整備では安全に出力禁止のまま残しています。
 
-夏のコードの出典・差分・権利確認事項は [移植記録](docs/migration.md)を参照してください。
+夏のコードの出典・差分・権利確認事項は [移植記録](archive/docs/migration.md)(アーカイブ)を参照してください。

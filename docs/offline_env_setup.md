@@ -15,7 +15,7 @@ uv run ruff check .
 uv run pytest -q
 ```
 
-この手順の実Pi上での検証は未実施です。PC上の成功記録はvalidation.mdに分けています。夏の `uv run task whl`、IM920用pyserial、GPIO/I2C用ライブラリーは春へ持ち込みません。
+この手順の実Pi上での検証は未実施です。PC上の成功記録は[旧検証記録](../archive/docs/validation.md)にあります。夏の `uv run task whl`、IM920用pyserial、GPIO/I2C用ライブラリーは春へ持ち込みません。
 
 ## 2. 接続を切る前にキャッシュを確認する
 
@@ -39,4 +39,4 @@ uv run --offline --no-sync sakura-pilot --verbose
 
 ## ESP-IDFと別PCでの準備
 
-公式SDK/ツールチェーンやDockerイメージも事前取得が必要です。ESP-IDF初回導入までオフラインで可能とは扱いません。完全にクリーンなPiへ持ち込める配布物を用意する場合は、対象アーキテクチャのwheelとbuild依存を確定し、隔離環境で導入試験を行う作業が残っています。
+PlatformIOのプラットフォーム・ESP-IDF・ツールチェーンも事前取得が必要です(初回の `pio run` で `~/.platformio` に保存されます)。ESP-IDF初回導入までオフラインで可能とは扱いません。完全にクリーンなPiへ持ち込める配布物を用意する場合は、対象アーキテクチャのwheelとbuild依存を確定し、隔離環境で導入試験を行う作業が残っています。

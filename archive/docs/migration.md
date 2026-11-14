@@ -10,7 +10,7 @@
 
 ## 対応表
 
-表中の `controller/...`、`command.py`、`main.py` は `raspberryPi/src/sakura_avenue/` 配下です。コードコメントは夏を参考に、Python docstringとC++ Doxygenを区別して簡潔に記載します。[開発・コメント規約](development.md)に、単位・戻り値・安全上の副作用の書き方をまとめています。
+表中の `controller/...`、`command.py`、`main.py` は `raspberryPi/src/sakura_avenue/` 配下です。コードコメントは夏を参考に、Python docstringとC++ Doxygenを区別して簡潔に記載します。[開発・コメント規約](../../docs/development.md)に、単位・戻り値・安全上の副作用の書き方をまとめています。
 
 | 元ファイル（基準ディレクトリ） | 移植先 | 変更 |
 |---|---|---|
@@ -28,7 +28,7 @@
 
 ## 新規部分
 
-共通v1 UDP仕様/ベクトル、送受信アダプター、パラメーター式4輪オムニ、rank検証、安全状態機械、ホスト制御結合、CI、日本語ドキュメント。従来のテンプレートは `legacy/arduino-template/` へ移動し、C5対応済みとは扱いません。
+共通v1 UDP仕様/ベクトル、送受信アダプター、パラメーター式4輪オムニ、rank検証、安全状態機械、ホスト制御結合、CI、日本語ドキュメント。従来のテンプレートは `archive/arduino-template/` へ移動し、C5対応済みとは扱いません。
 
 ## 残作業
 

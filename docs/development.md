@@ -1,6 +1,6 @@
 # コメントの書き方
 
-夏のコードを参考にしつつ、説明は短く統一します。移植の経緯はmigration.md、設計の詳細はarchitecture.mdへ記載します。
+夏のコードを参考にしつつ、説明は短く統一します。移植の経緯は[移植記録](../archive/docs/migration.md)、設計の詳細はarchitecture.mdへ記載します。
 
 ## Python docstring
 

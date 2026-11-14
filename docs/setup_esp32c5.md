@@ -2,7 +2,7 @@
 
 ## バージョンの固定
 
-初期検証には **ESP-IDF v5.5.1**（commit `fcae32885b0296b32044cb99ecbdc50d98dddb83`）を固定します。ESP32-C5対応と新TWAI APIを備えた再現可能な基準として選びました。最新推奨版という意味ではありません。アップデート時はC5ビルドとAPI差分を再確認してください。
+ビルドは PlatformIO(pioarduino版 `espressif32`)が同梱する **ESP-IDF 5.5.x**（現在 5.5.5）を使います。初期検証は v5.5.1 で行いました。ESP32-C5対応と新TWAI APIを備えた再現可能な基準として選びました。最新推奨版という意味ではありません。アップデート時はC5ビルドとAPI差分を再確認してください。
 
 公式資料:
 
@@ -12,27 +12,18 @@
 
 C5は旧 `driver/twai.h` APIの単純移植ではなく `esp_twai.h` / `esp_twai_onchip.h`、`twai_new_node_onchip` を使います。実装はv5.5.1の実ヘッダーと照合しています。受信はISR callbackから `twai_node_receive_from_isr`、その場でコピーしてFreeRTOSキューへ渡し、PIをISRで実行しません。送信バッファーはon_tx_doneまで寿命を維持します。
 
-## ローカルSDK
+## PlatformIO(標準ビルド)
+
+`firmware/platformio.ini` が pioarduino 版 `espressif32` プラットフォーム(ESP-IDF 5.5.x同梱)と `esp32-c5-devkitc-1` ボードを指定します。ソースは `src_dir = main`、`components/` はそのまま使われます。
 
 ```bash
-git clone --recursive --branch v5.5.1 https://github.com/espressif/esp-idf.git
-cd esp-idf
-./install.sh esp32c5
-. ./export.sh
-# sakura-avenue/firmware へ移動
-idf.py set-target esp32c5
-idf.py build
+cd firmware
+pio run
 ```
 
-## 公式Dockerイメージ
+`CMakeLists.txt` のバージョン確認は 5.5.x を許容します(PIO同梱は 5.5.5)。
 
-リポジトリルートで実行します。これはビルドのみで書き込みません。
-
-```bash
-docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp   -v "$PWD:/project" -w /project/firmware   espressif/idf:v5.5.1 bash -lc 'idf.py set-target esp32c5 && idf.py build'
-```
-
-CIも同じタグを使用します。生成sdkconfig/buildはGit管理しません。`sdkconfig.defaults` は共通設定のみです。C++純粋制御の設定エラーは例外で拒否するためC++例外を有効化しています。
+CIも `pio run` でビルドします。生成sdkconfig/buildはGit管理しません。`sdkconfig.defaults` は共通設定のみです。C++純粋制御の設定エラーは例外で拒否するためC++例外を有効化しています。
 
 ## 実機前の境界
 

@@ -54,4 +54,4 @@ PS実デバイスでの軸・ボタン・無線切断、Piの5GHz AP、C5の無�
 - Python: `uv run ruff check/format --check` と pytest で52件成功（サービス関連20件。ゴールデンベクタ、再送・タイムアウト・他送信元無視、CSV保存、欠落検知、事前範囲検証、模擬ESPとのループバック、`sakura-pilot --console`の対話処理）。
 - C++: ホストビルドとCTestで成功。ゴールデンベクタ、ゲイン検証と反映、DISARM以外での拒否、lease切れ、不正パケットでFAULTにならないこと、NVS破損時の既定値フォールバックをモックで確認。
 - `udp_socket.cpp`と`nvs_param_store.cpp`は実ESP-IDFヘッダーがない環境のため、スタブヘッダーで構文確認のみ。**C5ビルド（idf.py）は未実行。** CIで確認が必要です。
-- 未検証: 実機での送受信、NVSの実書込み、実フィードバックでのログ、ゲイン変更後の挙動。`app_main`が何も起動しないため実機では動作しません（architecture.md参照）。
+- 未検証: 実機での送受信、NVSの実書込み、実フィードバックでのログ、ゲイン変更後の挙動。`app_main`が何も起動しないため実機では動作しません（[architecture.md](../../docs/architecture.md)参照）。
