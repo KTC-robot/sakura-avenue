@@ -12,25 +12,21 @@ jobs:
           version: "0.11.17"
           python-version: "3.12"
       - run: uv sync --locked --extra controller
-        working-directory: pi
       - run: uv run ruff check . && uv run ruff format --check . && uv run pytest -q
-        working-directory: pi
   host-cpp:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S firmware/tests -B build/host -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake -S tests/host -B build/host -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build/host
       - run: ctest --test-dir build/host --output-on-failure
   esp32c5:
     runs-on: ubuntu-latest
-    container: espressif/idf:v5.5.1
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install platformio
       - name: Build ESP32-C5 (no flash)
-        shell: bash
-        working-directory: firmware
-        run: |
-          . "$IDF_PATH/export.sh"
-          idf.py set-target esp32c5
-          idf.py build
+        run: pio run -e esp32c5_rx

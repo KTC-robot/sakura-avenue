@@ -17,8 +17,9 @@ Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDP�
 
 ## 構成
 
-- `pi/`: uv管理のPythonパッケージ、evdevアダプター、入力モデル、マッパー、UDP、テスト
-- `firmware/`: ESP-IDF 5.5.1 / ESP32-C5プロジェクト。`components/control` は純粋C++、`protocol` は共通パケット、`device` はC620とTWAI、`network` はUDPと制御ループ
+- `src/sakura_avenue/`、`tests/`、`pyproject.toml`: uv管理のPythonパッケージ(Pi側)、evdevアダプター、入力モデル、マッパー、UDP、テスト
+- `platformio.ini` と `platform/`: PlatformIO(Arduino) / ESP32-C5ファームウェア。`control` は純粋C++、`protocol` は共通パケット、`device` はC620とTWAI、`network` はUDPと制御ループ
+- `tests/host/`: ホストC++テスト(CMake)
 - `protocol/`: バイナリー仕様とPython/C++共通テストベクトル
 - `docs/`: セットアップ、ネットワーク、安全設計、配線、移植記録、検証結果
 - `legacy/arduino-template/`: 元のArduino/PlatformIOテンプレートの保存用。C5用のビルド対象ではありません
@@ -26,7 +27,7 @@ Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDP�
 
 ## 開発を始める
 
-必要環境: Git、Python 3.12以上、uv、ホストC++17コンパイラー、CMake 3.19以上。C5ビルドにはESP-IDF **v5.5.1** または同タグの公式Dockerイメージを使います。
+必要環境: Git、Python 3.12以上、uv、ホストC++17コンパイラー、CMake 3.19以上。C5ビルドにはPlatformIO(VS Code拡張 `platformio.platformio-ide` またはCLI)を使います。
 
 ```bash
 git clone https://github.com/KTC-robot/sakura-avenue.git
@@ -40,14 +41,12 @@ uv run sakura-pilot --verbose   # 入力プレビュー。モーター駆動な�
 
 ```bash
 # リポジトリルートから。実機不要
-cmake -S firmware/tests -B build/host -DCMAKE_BUILD_TYPE=Debug
+cmake -S tests/host -B build/host -DCMAKE_BUILD_TYPE=Debug
 cmake --build build/host
 ctest --test-dir build/host --output-on-failure
 
-# ESP-IDF v5.5.1 の export.sh を読み込んだシェルで
-cd firmware
-idf.py set-target esp32c5
-idf.py build
+# ESP32-C5ファームウェア(書き込みなし)
+pio run -e esp32c5_rx
 ```
 
 ドキュメントの読み順と夏の資料との対応は [docs一覧](docs/README.md)を参照してください。
@@ -64,7 +63,7 @@ v1は20バイトのUDPパケット。正規化した `vx/vy/wz`、バージョ�
 
 ## 未確定・未実装
 
-Pi/開発ボード型番、車輪位置・駆動方向・半径・実減速比・モーター符号、GPIO、速度上限、SSID/パスワード/IP、競技機構は未確定です。`firmware/config.example.json` は未設定項目のスキーマ例で、ファームウェアは読み込みません。テスト用の幾何配置は実機設定に使いません。
+Pi/開発ボード型番、車輪位置・駆動方向・半径・実減速比・モーター符号、GPIO、速度上限、SSID/パスワード/IP、競技機構は未確定です。`platform/config.example.json` は未設定項目のスキーマ例で、ファームウェアは読み込みません。テスト用の幾何配置は実機設定に使いません。
 
 5GHz Wi-Fiの接続・切断イベントの実タスクへの統合、アプリケーション認証、ARM操作UI、設定ローダー、実機制御タスクの開始、物理インターロック、PI調整、実機検証は今後の作業です。初期整備では安全に出力禁止のまま残しています。
 
