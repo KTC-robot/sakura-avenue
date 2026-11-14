@@ -9,6 +9,7 @@ bool TwaiBus::received(twai_node_handle_t node,
   raw.buffer = f.data.data();
   raw.buffer_len = f.data.size();
   if (twai_node_receive_from_isr(node, &raw) != ESP_OK) {
+    self.last_error_ = 0x200; // 受信取得失敗
     self.fault_ = true;
     return false;
   }
@@ -18,8 +19,10 @@ bool TwaiBus::received(twai_node_handle_t node,
   f.remote = raw.header.rtr;
   f.fd = raw.header.fdf;
   BaseType_t wake = pdFALSE;
+  // FBは最新値だけが必要。あふれてもFAULTにせず回数だけ数える。
+  // 古さはFeedback::freshの期限で検出する。
   if (xQueueSendFromISR(self.rx_, &f, &wake) != pdTRUE)
-    self.fault_ = true;
+    self.rx_dropped_++;
   return wake == pdTRUE;
 }
 bool TwaiBus::sent(twai_node_handle_t, const twai_tx_done_event_data_t *event,
@@ -30,13 +33,17 @@ bool TwaiBus::sent(twai_node_handle_t, const twai_tx_done_event_data_t *event,
   self.busy_ = false;
   return false;
 }
-bool TwaiBus::error(twai_node_handle_t, const twai_error_event_data_t *,
+bool TwaiBus::error(twai_node_handle_t, const twai_error_event_data_t *event,
                     void *ctx) {
-  static_cast<TwaiBus *>(ctx)->fault_ = true;
+  auto &self = *static_cast<TwaiBus *>(ctx);
+  self.last_error_ = event->err_flags.val;
+  self.error_count_++;
+  self.fault_ = true;
   return false;
 }
 bool TwaiBus::changed(twai_node_handle_t,
                       const twai_state_change_event_data_t *event, void *ctx) {
+  static_cast<TwaiBus *>(ctx)->state_count_++;
   if (event->new_sta != TWAI_ERROR_ACTIVE)
     static_cast<TwaiBus *>(ctx)->fault_ = true;
   return false;
@@ -53,7 +60,7 @@ esp_err_t TwaiBus::begin(int tx, int rx) {
   if (node_ || rx_ || tx == rx || !GPIO_IS_VALID_OUTPUT_GPIO(tx) ||
       !GPIO_IS_VALID_GPIO(rx))
     return ESP_ERR_INVALID_ARG;
-  rx_ = xQueueCreate(16, sizeof(CanFrame));
+  rx_ = xQueueCreate(64, sizeof(CanFrame));
   if (!rx_)
     return ESP_ERR_NO_MEM;
   twai_onchip_node_config_t cfg{};
@@ -106,6 +113,24 @@ bool TwaiBus::send(const CanFrame &f) {
     fault_ = true;
     return false;
   }
+  return true;
+}
+bool TwaiBus::info(twai_node_status_t &status) const {
+  twai_node_record_t record{};
+  return node_ && twai_node_get_info(node_, &status, &record) == ESP_OK;
+}
+bool TwaiBus::recover() {
+  twai_node_status_t st{};
+  if (!info(st))
+    return false;
+  if (st.state == TWAI_ERROR_BUS_OFF) {
+    twai_node_recover(node_);
+    return false;
+  }
+  if (st.state != TWAI_ERROR_ACTIVE)
+    return false;
+  busy_ = false;
+  fault_ = false;
   return true;
 }
 bool TwaiBus::read(CanFrame &f) {

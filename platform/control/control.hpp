@@ -208,6 +208,13 @@ public:
       throw std::invalid_argument("deadzone");
   }
   /**
+   * @brief 全輪のPIゲインを変更する(ベンチ調整用)。
+   */
+  void set_gains(float kp, float ki) {
+    for (auto &p : pi_)
+      p.setGains(kp, ki);
+  }
+  /**
    * @brief 目標RPMと全PI積分をリセットする。
    */
   void reset() {
