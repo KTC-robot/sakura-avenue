@@ -1,211 +1,71 @@
-# 2027関西春ロボコン
+# 2027関西春ロボコン — sakura-avenue
 
-## 必要環境
+Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDPでESP32-C5へ指令を送る、4輪オムニロボットの開発基盤です。M3508 P19 ×4 / C620 ×4、Classic CAN 1Mbps、夏のPI速度制御を継承します。ESP-NOW、IM920、送信専用ESP32は使用しません。
 
-以下をインストールしてください。
+**現在は実機駆動前の初期整備段階です。** firmwareの起動処理はDISARMを表示するだけでWi-Fi/CANを開始しません。Pi CLIは入力プレビューとDISARM送信のみです。純粋な制御モジュール・UDPアダプター・状態管理のテストは実施できますが、無線操縦できる完成機ではありません。
 
-* Git
-* Visual Studio Code
-* PlatformIO 拡張機能
+## ハードウェアと役割
 
-Visual Studio Code の拡張機能画面から `PlatformIO` を検索してインストールします。
+| 項目 | 役割・状態 |
+|---|---|
+| Raspberry Pi + PlayStationコントローラー | evdev入力・正規化・操作指令生成・UDP送信。Pi型番未定 |
+| 5GHz IEEE 802.11 | PiのAPまたは外部ルーター。同じUDPペイロードを使用 |
+| ESP32-C5 | パケット検証・安全管理・運動学・PI・CAN。開発ボード未定 |
+| M3508 P19 / C620 各4台 | モーター軸RPMフィードバック・電流指令 |
+| 外付けCANトランシーバー | 必須。型番・GPIO・配線は未確定 |
+| 物理非常停止 | 駆動電源を遮断する独立回路が必須。ソフトウェア停止では代替不可 |
 
-PlatformIO Core を別途インストールする必要はありません。
+## 構成
 
-## リポジトリを取得
+- `pi/`: uv管理のPythonパッケージ、evdevアダプター、入力モデル、マッパー、UDP、テスト
+- `firmware/`: ESP-IDF 5.5.1 / ESP32-C5プロジェクト。`components/control` は純粋C++、`protocol` は共通パケット、`device` はC620とTWAI、`network` はUDPと制御ループ
+- `protocol/`: バイナリー仕様とPython/C++共通テストベクトル
+- `docs/`: セットアップ、ネットワーク、安全設計、配線、移植記録、検証結果
+- `legacy/arduino-template/`: 元のArduino/PlatformIOテンプレートの保存用。C5用のビルド対象ではありません
+- `.github/workflows/ci.yml`: Python解析・テスト、ホストC++、C5ビルド
+
+## 開発を始める
+
+必要環境: Git、Python 3.12以上、uv、ホストC++17コンパイラー、CMake 3.19以上。C5ビルドにはESP-IDF **v5.5.1** または同タグの公式Dockerイメージを使います。
 
 ```bash
-git clone htttps://github.com/KTC-robot/sakura-avenue.git
-cd sakura-avenue
+git clone https://github.com/KTC-robot/sakura-avenue.git
+cd sakura-avenue/pi
+uv sync --locked --extra controller
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest -q
+uv run sakura-pilot --verbose   # 入力プレビュー。モーター駆動なし
 ```
-
-取得したディレクトリを Visual Studio Code で開きます。
 
 ```bash
-code .
+# リポジトリルートから。実機不要
+cmake -S firmware/tests -B build/host -DCMAKE_BUILD_TYPE=Debug
+cmake --build build/host
+ctest --test-dir build/host --output-on-failure
+
+# ESP-IDF v5.5.1 の export.sh を読み込んだシェルで
+cd firmware
+idf.py set-target esp32c5
+idf.py build
 ```
 
-## ESP32を接続
+ドキュメントの読み順と夏の資料との対応は [docs一覧](docs/README.md)を参照してください。
 
-ESP32をUSBでPCへ接続します。
+詳しくは [Piセットアップ](docs/setup_pi.md)、[ESP32-C5セットアップ](docs/setup_esp32c5.md)、[検証記録](docs/validation.md)を参照してください。今回、実機への書き込みは行いません。
 
-Linuxでは通常、以下のようなシリアルデバイスとして認識されます。
+## 通信と安全
 
-```text
-/dev/ttyUSB0
-```
+v1は20バイトのUDPパケット。正規化した `vx/vy/wz`、バージョン、シーケンス、DISARM/ARM/DRIVE/STOPを持ちます。車体は+X前、+Y左、+Z反時計回り。正規化指令からSI速度への換算上限は実機設定が必要です。[仕様](protocol/specification.md)を両言語の基準とします。
 
-または、
+50Hz、指令タイムアウト180ms、CANフィードバック100msは初期検証値です。通信・Wi-Fi・CAN・フィードバック・インターロック異常時はFAULTにして、目標RPMとPI積分をリセットしゼロ電流フレームを生成します。復帰にはニュートラルDISARM、その後の明示ARMが必要です。送信失敗時にはゼロ電流の到達も保証できません。独立した駆動電源遮断が必要です。
 
-```text
-/dev/ttyACM0
-```
+現状の送信元IP/port検証とWi-Fi暗号化だけではアプリケーション認証になりません。**認証・リプレイ保護・非常停止連携を整備するまで実機の駆動経路に接続しないでください。** [ネットワーク設計](docs/network.md)、[安全状態と構成](docs/architecture.md)に制約を記載しています。
 
-PlatformIOが接続先を自動検出するため、通常はポートを手動指定する必要はありません。
+## 未確定・未実装
 
-## ビルド
+Pi/開発ボード型番、車輪位置・駆動方向・半径・実減速比・モーター符号、GPIO、速度上限、SSID/パスワード/IP、競技機構は未確定です。`firmware/config.example.json` は未設定項目のスキーマ例で、ファームウェアは読み込みません。テスト用の幾何配置は実機設定に使いません。
 
-Visual Studio Code 左側の PlatformIO アイコンを開きます。
+5GHz Wi-Fiの接続・切断イベントの実タスクへの統合、アプリケーション認証、ARM操作UI、設定ローダー、実機制御タスクの開始、物理インターロック、PI調整、実機検証は今後の作業です。初期整備では安全に出力禁止のまま残しています。
 
-`PROJECT TASKS` から以下を実行します。
-
-```text
-esp32dev
-└── General
-    └── Build
-```
-
-または、Visual Studio Code 下部のチェックマーク `✓` からビルドできます。
-
-正常に完了すると、ターミナルに以下のように表示されます。
-
-```text
-SUCCESS
-```
-
-## ESP32へ書き込み
-
-`PROJECT TASKS` から以下を実行します。
-
-```text
-esp32dev
-└── General
-    └── Upload
-```
-
-または、Visual Studio Code 下部の矢印 `→` から書き込めます。
-
-書き込み完了後、ESP32が再起動します。
-
-## シリアルモニター
-
-PlatformIO の `PROJECT TASKS` から以下を実行します。
-
-```text
-esp32dev
-└── Monitor
-```
-
-または、Visual Studio Code 下部のシリアルモニターアイコンから起動できます。
-
-正常に動作していれば、以下のような出力が表示されます。
-
-```text
-ESP32 started
-LED ON
-LED OFF
-LED ON
-LED OFF
-```
-
-`platformio.ini` では受信時刻を表示するよう設定しています。
-
-```ini
-monitor_filters =
-    default
-    time
-```
-
-そのため、実際には以下のような形式で表示されます。
-
-```text
-12:30:01.123 > ESP32 started
-12:30:01.124 > LED ON
-12:30:01.625 > LED OFF
-```
-
-## シリアル設定
-
-シリアル通信速度は `115200` に設定しています。
-
-```ini
-monitor_speed = 115200
-```
-
-ESP32側の通信速度は `include/config.hpp` で設定します。
-
-```cpp
-constexpr uint32_t SERIAL_BAUD = 115200;
-```
-
-両方の値を一致させてください。
-
-入力文字はシリアルモニター上にも表示されます。
-
-```ini
-monitor_echo = yes
-```
-
-Enterを押した場合は `LF` を送信します。
-
-```ini
-monitor_eol = LF
-```
-
-そのため、シリアルコマンドを実装する場合は以下のように改行単位で処理できます。
-
-```cpp
-String command = Serial.readStringUntil('\n');
-```
-
-## ディレクトリ構成
-
-```text
-.
-├── include/
-│   └── config.hpp
-├── lib/
-│   └── .gitkeep
-├── src/
-│   └── main.cpp
-├── test/
-│   └── .gitkeep
-├── .gitignore
-├── platformio.ini
-└── README.md
-```
-
-### `include`
-
-プロジェクト全体で使用するヘッダーファイルを配置します。
-
-GPIO番号や通信速度などの設定値は `config.hpp` にまとめます。
-
-### `lib`
-
-プロジェクト固有のライブラリを配置します。
-
-初期状態では空ディレクトリを保持するため `.gitkeep` を配置しています。
-
-### `src`
-
-ESP32で実行するソースコードを配置します。
-
-### `test`
-
-PlatformIOのテストコードを配置します。
-
-初期状態では `.gitkeep` のみ配置しています。
-
-## 基本操作
-
-Visual Studio Code の PlatformIO 拡張機能から、主に以下を使用します。
-
-```text
-Build   : プログラムをビルド
-Upload  : ESP32へ書き込み
-Monitor : シリアルモニターを開く
-Clean   : ビルド成果物を削除
-```
-
-通常の開発では、
-
-```text
-Build
-  ↓
-Upload
-  ↓
-Monitor
-```
-
-の順で確認します。
+夏のコードの出典・差分・権利確認事項は [移植記録](docs/migration.md)を参照してください。

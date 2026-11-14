@@ -1,0 +1,12 @@
+{
+  "status": "UNCONFIGURED_REFERENCE_SCHEMA_NOT_LOADED_BY_FIRMWARE",
+  "can_tx_gpio": null,
+  "can_rx_gpio": null,
+  "wheels": [],
+  "max_vx_m_s": null,
+  "max_vy_m_s": null,
+  "max_wz_rad_s": null,
+  "max_motor_rpm": null,
+  "slew_rpm_s": null,
+  "physical_interlock": null
+}

@@ -1,0 +1,3 @@
+CONFIG_IDF_TARGET="esp32c5"
+CONFIG_COMPILER_CXX_EXCEPTIONS=y
+# Hardware outputs and Wi-Fi are deliberately not started by app_main.

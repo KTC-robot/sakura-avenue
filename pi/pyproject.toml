@@ -1,0 +1,16 @@
+[project]
+name = "sakura-avenue"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+[project.optional-dependencies]
+controller = ["evdev>=1.9.3,<2; sys_platform == 'linux'"]
+[project.scripts]
+sakura-pilot = "sakura_avenue.main:main"
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+[dependency-groups]
+dev = ["ruff>=0.15,<0.16", "pytest>=8,<10"]
+[tool.pytest.ini_options]
+testpaths = ["tests"]

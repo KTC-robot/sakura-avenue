@@ -1,0 +1,7 @@
+# Documentation template; the preview CLI currently uses explicit --host/--port.
+# Copy to config.local.toml; never commit credentials.
+[network]
+host = ""  # Must be explicitly assigned for isolated bench tests
+port = 0
+hz = 50
+# No credentials here: provision Wi-Fi through OS / private ESP-IDF configuration.
