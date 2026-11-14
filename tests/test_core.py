@@ -46,7 +46,7 @@ def test_mapping():
 
 
 VECTORS = json.loads(
-    (Path(__file__).resolve().parents[2] / "protocol/golden_vectors.json").read_text()
+    (Path(__file__).resolve().parents[1] / "protocol/golden_vectors.json").read_text()
 )
 
 

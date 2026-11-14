@@ -3,7 +3,7 @@
  * @brief Wi-Fi設定から独立したノンブロッキングUDP受信を提供する。
  */
 #pragma once
-#include "receiver.hpp"
+#include "network/receiver.hpp"
 namespace sakura {
 // UDPベンチアダプター。Wi-Fi設定は分離し、app_mainでは開始しない。
 class UdpSocket {

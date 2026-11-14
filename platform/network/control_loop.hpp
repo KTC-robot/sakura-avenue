@@ -3,8 +3,8 @@
  * @brief 受信監視、フィードバック、PIリセットとゼロ電流生成を結合する。
  */
 #pragma once
-#include "c620.hpp"
-#include "receiver.hpp"
+#include "device/c620.hpp"
+#include "network/receiver.hpp"
 namespace sakura {
 /**
  * @brief 安全監視と電流指令の生成を結合する。

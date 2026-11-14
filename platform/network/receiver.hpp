@@ -3,7 +3,7 @@
  * @brief 送信元、UDP形式、連番を検証して走行要求を安全状態へ反映する。
  */
 #pragma once
-#include "protocol.hpp"
+#include "protocol/protocol.hpp"
 #include <string>
 namespace sakura {
 /**

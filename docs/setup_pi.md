@@ -3,7 +3,6 @@
 Pi型番は未確定です。LinuxとPython 3.12以上、uvを用意してください。5GHz対応とAPモードの可否は選定したPi/無線機器ごとに確認が必要です。
 
 ```bash
-cd pi
 uv sync --locked                 # 純粋ロジックの開発
 uv run ruff check .
 uv run ruff format --check .

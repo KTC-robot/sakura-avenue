@@ -3,7 +3,7 @@
  * @brief ESP-IDF 5.5.1の新TWAI APIを用いるC620用ベンチアダプター。
  */
 #pragma once
-#include "c620.hpp"
+#include "device/c620.hpp"
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
 #include "freertos/FreeRTOS.h"

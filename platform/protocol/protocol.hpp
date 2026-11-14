@@ -3,7 +3,7 @@
  * @brief protocol/specification.mdの20バイトUDP v1を符号化・検証する。
  */
 #pragma once
-#include "control.hpp"
+#include "control/control.hpp"
 #include <cstring>
 #include <limits>
 namespace sakura {

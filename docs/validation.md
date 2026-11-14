@@ -10,7 +10,7 @@
 | Python単体/結合 | `uv run pytest -q` | **32 passed** |
 | ホストC++ | GNU C++ 16.2.1、CMake Debug、`cmake --build build/host` | 成功、-Wall -Wextra -Werror |
 | C++テスト | `ctest --test-dir build/host --output-on-failure` | **1/1 suite passed**（複数の検証assertを含む） |
-| ESP32-C5ビルド | 公式 `espressif/idf:v5.5.1`、`idf.py set-target esp32c5` / `idf.py build` | 成功、C5 .bin生成。新TWAI・UDP・5GHz STAアダプターをコンパイル |
+| ESP32-C5ビルド | `pio run -e esp32c5_rx`(pioarduino 55.03.312 / Arduino-ESP32 3.3.12) | 成功、C5 .bin生成。新TWAI・UDP・5GHz STAアダプターをコンパイル |
 | 再利用元 | reference cloneの `git status --short` | 変更なし |
 | GitHub Actions | workflow追加 | リモートCIは未実行 |
 

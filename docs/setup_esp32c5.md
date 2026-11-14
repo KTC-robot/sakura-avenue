@@ -1,43 +1,35 @@
-# ESP32-C5 / ESP-IDF
+# ESP32-C5 / PlatformIO (Arduino)
 
-## バージョンの固定
+## 構成
 
-初期検証には **ESP-IDF v5.5.1**（commit `fcae32885b0296b32044cb99ecbdc50d98dddb83`）を固定します。ESP32-C5対応と新TWAI APIを備えた再現可能な基準として選びました。最新推奨版という意味ではありません。アップデート時はC5ビルドとAPI差分を再確認してください。
+VS Codeの PlatformIO IDE が認識できるよう、リポジトリルートに `platformio.ini` を置き、`src_dir = platform` でファームウェアを指定します(夏のUnagiFestivalと同じ構成)。春の正規ビルドは `env:esp32c5_rx` です。
 
-公式資料:
+- platform: pioarduino `55.03.312`(Arduino-ESP32 3.3.12 / ESP-IDF 5.5系)。公式 `espressif32` はESP32-C5未対応のためURLで固定しています。更新時はC5ビルドとAPI差分を再確認してください。
+- board: `esp32-c5-devkitc-1` をフラッシュ16MBに上書きしています。モジュールは ESP32-C5-WROOM-1-N16R8 と推定(未確認)です。N16R8用の定義は無く、PSRAMは使わないためPSRAMは有効化しません。型番が違うと分かったら `board_upload.*` とパーティションを直してください。
+- C++例外: 純粋制御の設定エラーを例外で拒否するため `-fexceptions` を指定しています。
+- 自作ソースのみ `-std=gnu++17 -Wall -Wextra` を適用します。
 
-- [ESP32-C5 TWAI v5.5.1](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32c5/api-reference/peripherals/twai.html)
-- [5.5 peripheral migration](https://docs.espressif.com/projects/esp-idf/en/v5.5/esp32c5/migration-guides/release-5.x/5.5/peripherals.html)
-- [ESP32-C5 Wi-Fi v5.5.1](https://docs.espressif.com/projects/esp-idf/en/v5.5.1/esp32c5/api-reference/network/esp_wifi.html)
-
-C5は旧 `driver/twai.h` APIの単純移植ではなく `esp_twai.h` / `esp_twai_onchip.h`、`twai_new_node_onchip` を使います。実装はv5.5.1の実ヘッダーと照合しています。受信はISR callbackから `twai_node_receive_from_isr`、その場でコピーしてFreeRTOSキューへ渡し、PIをISRで実行しません。送信バッファーはon_tx_doneまで寿命を維持します。
-
-## ローカルSDK
+## ビルド
 
 ```bash
-git clone --recursive --branch v5.5.1 https://github.com/espressif/esp-idf.git
-cd esp-idf
-./install.sh esp32c5
-. ./export.sh
-# sakura-avenue/firmware へ移動
-idf.py set-target esp32c5
-idf.py build
+pio run -e esp32c5_rx      # ビルドのみ
+pio check -e esp32c5_rx    # cppcheck
 ```
 
-## 公式Dockerイメージ
+VS Codeでは拡張 `platformio.platformio-ide` を使用します(`pioarduino-ide` とは併用しません)。書き込み(`pio run -t upload`)は実機確認後に行います。
 
-リポジトリルートで実行します。これはビルドのみで書き込みません。
+## 私有設定
 
-```bash
-docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp   -v "$PWD:/project" -w /project/firmware   espressif/idf:v5.5.1 bash -lc 'idf.py set-target esp32c5 && idf.py build'
-```
+`platform/config.example.hpp` を `platform/config.local.hpp` にコピーしてSSID・パスワード・国コードを入れます。`config.local.*` はGit管理外です。
 
-CIも同じタグを使用します。生成sdkconfig/buildはGit管理しません。`sdkconfig.defaults` は共通設定のみです。C++純粋制御の設定エラーは例外で拒否するためC++例外を有効化しています。
+## TWAI
+
+Arduino-ESP32 3.3.12に含まれるESP-IDF 5.5系の新API `esp_twai.h` / `esp_twai_onchip.h`、`twai_new_node_onchip` を使います。受信はISR callbackから `twai_node_receive_from_isr`、その場でコピーしてFreeRTOSキューへ渡し、PIをISRで実行しません。送信バッファーはon_tx_doneまで寿命を維持します。
 
 ## 実機前の境界
 
-`app_main` はDISARMログのみ。SSID/パスワード・GPIO・実機幾何を仮定せず、無線・CAN・モーター制御タスクは起動しません。`TwaiBus::begin(tx,rx)` はGPIOを明示して初めて呼べるアダプターです。Classic CAN 1Mbps、標準ID、FD/BRS無効で使用します。外付けトランシーバーが必要です。
+`setup()` はDISARMログのみ。SSID/パスワード・GPIO・実機幾何を仮定せず、無線・CAN・モーター制御タスクは起動しません。`TwaiBus::begin(tx,rx)` はGPIOを明示して初めて呼べるアダプターです。Classic CAN 1Mbps、標準ID、FD/BRS無効で使用します。外付けトランシーバーが必要です。
 
-5GHz接続では国設定・チャネル・対応ボード・アンテナ・OSのAP機能を確認し、`esp_wifi_set_band_mode(WIFI_BAND_MODE_5G_ONLY)` 等を接続実装時に検証してください。`WifiStation` は5GHz限定STA接続と接続/切断フラグを実装しています。呼び出し側がNVS/netif/イベントループを準備し、私有設定からSSID・パスワード・国コードを渡す必要があります。資格情報はRAM保存を指定しログには出しません。app_mainは呼び出さず、無線接続は未実証です。
+5GHz接続では国設定・チャネル・対応ボード・アンテナ・OSのAP機能を確認し、`WiFi.setBandMode(WIFI_BAND_MODE_5G_ONLY)` 等を接続実装時に検証してください。`WifiStation` は5GHz限定STA接続を実装しています。私有設定からSSID・パスワード・国コードを渡す必要があります。資格情報は永続化せず(`WiFi.persistent(false)`)ログには出しません。`setup()` は呼び出さず、無線接続は未実証です。
 
 フラッシュ、Wi-Fiリンク、CAN信号、RPM、停止時間はいずれも実機未確認です。ビルド成功はこれらの保証ではありません。
