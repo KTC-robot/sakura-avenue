@@ -14,6 +14,7 @@
  * 車体の幾何は下の「車体設定」で定義する。取り付け符号は実機確認で決める。
  */
 #include "control/control.hpp"
+#include "control/vehicle_config.hpp"
 #include "device/c620.hpp"
 #include "device/twai_bus.hpp"
 #include <Arduino.h>
@@ -22,30 +23,11 @@
 #include <optional>
 
 namespace {
-// ---- 車体設定(実測値。符号は実機確認後に更新する) ----
-constexpr int kTxGpio = 23, kRxGpio = 24;
-constexpr float kPi = 3.14159265358979f;
-constexpr float kCenterToWheel = 0.25f; // 車体中心から各輪まで[m]
-constexpr float kWheelRadius = 0.05f;   // 車輪半径[m](直径100mm)
-constexpr float kGearRatio = 19.0f;     // M3508 P19
-// 位置角[deg]、C620のID(1〜4)、取り付け符号。上から見て前=+X、左=+Y。
-//   前左=ID3  前右=ID1 / 後左=ID2  後右=ID4
-struct Slot {
-  float angle_deg;
-  uint8_t id;
-  int8_t sign;
-};
-constexpr Slot kSlots[4] = {
-    {135.0f, 3, +1}, // 前左
-    {45.0f, 1, +1},  // 前右
-    {225.0f, 2, +1}, // 後左
-    {315.0f, 4, +1}, // 後右
-};
-// 正規化要求1.0あたりの車体速度。最大でもモーター約300RPMに収まる値。
-constexpr sakura::Limits kLimits = {0.08f, 0.08f, 0.32f, 300.0f, 600.0f, 0.05f};
+// ---- 車体設定は control/vehicle_config.hpp ----
+using namespace sakura::vehicle;
+constexpr int kTxGpio = kCanTxGpio, kRxGpio = kCanRxGpio;
+
 // ---- 安全上の固定値 ----
-constexpr int16_t kMaxCurrent = 1500;
-constexpr float kOverspeedRpm = 500.0f;
 constexpr uint32_t kRunMs = 3000, kFeedbackTimeoutMs = 100, kPeriodUs = 5000,
                    kLogMs = 100;
 constexpr float kMaxKp = 20.0f, kMaxKi = 10.0f;
@@ -63,22 +45,7 @@ uint32_t runStart = 0;
 float gainKp = SPEED_KP, gainKi = SPEED_KI;
 String line;
 
-std::array<sakura::WheelConfig, 4> wheels() {
-  std::array<sakura::WheelConfig, 4> w{};
-  for (int i = 0; i < 4; i++) {
-    float phi = kSlots[i].angle_deg * kPi / 180.0f;
-    w[i] = {kCenterToWheel * std::cos(phi), kCenterToWheel * std::sin(phi),
-            phi + kPi / 2.0f, // 接線方向(反時計回り)
-            kWheelRadius, kGearRatio, kSlots[i].sign,
-            static_cast<uint8_t>(kSlots[i].id - 1)};
-  }
-  return w;
-}
-
-const char *slotName(int idx) {
-  static const char *n[4] = {"前左", "前右", "後左", "後右"};
-  return n[idx];
-}
+const char *slotName(int idx) { return kSlotNames[idx]; }
 
 void stopAll(const char *reason) {
   armed = false;

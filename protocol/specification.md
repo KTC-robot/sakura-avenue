@@ -20,6 +20,21 @@ sequenceは送信パケットごとに1増加。`0 < uint32(new-old) < 2^31` の
 
 初期送信周期50Hz、受信期限180ms（受信側単調時計）、CAN feedback期限100ms。これらは実機検証が必要な初期値です。Safety.timeout_ms / Python Safety(timeout=...) で変更可能。入力イベントが無い静止時も周期送信します。送信停止は受信側の周期tickで検出します。
 
+## 状態通知(ハートビート)
+
+受信側(ESP)から送信元(Pi)へ、1秒に1回、10 bytesを送ります。宛先は設定の `peer_ip:peer_port`(Piの `--source-port`)、送信元は受信側のlisten portです。ネットワークバイト順。情報用で、受信側の制御・安全判定には使いません。Piは送信先と一致しない送信元のパケットを捨てます。
+
+| offset | bytes | 型 | 内容 |
+|---|---|---|---|
+| 0 | 2 | ASCII | `ST` |
+| 2 | 1 | uint8 | version = 1 |
+| 3 | 1 | uint8 | state: DISARM=0 / ARMED=1 / STOP=2 / FAULT=3 |
+| 4 | 1 | uint8 | flags: bit0 Wi-Fi、bit1 CAN、bit2 全C620のフィードバック、bit3 インターロック |
+| 5 | 1 | uint8 | 予約 = 0 |
+| 6 | 4 | uint32 | 送信ごとに増える連番 |
+
+「モータOK」はCAN健全(bit1)かつ全C620のフィードバック有効(bit2)と定義します。例: ARMED・全ビット・連番0x01020304 = `535401010f0001020304`、FAULT・Wi-Fiのみ・連番0 = `53540103010000000000`。長さ・magic/version・予約・stateが不正なパケットはPiが捨てます。
+
 ## 再許可
 
 起動DISARM。ニュートラルDISARMの受信後に、別パケットの明示ARMが来た場合だけARMEDになります。STOPとFAULTはARMを直接受け付けません。まずニュートラルDISARM、その後ARMが必要です。通信回復だけでは再許可しません。健康状態が不成立ならDISARM受信でもFAULTを解除しません。

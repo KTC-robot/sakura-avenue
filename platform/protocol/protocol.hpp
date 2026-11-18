@@ -57,4 +57,22 @@ inline bool encode(const Packet &p, std::array<uint8_t, packet_size> &b) {
   }
   return true;
 }
+constexpr size_t status_size = 10;
+constexpr uint8_t status_wifi = 1, status_can = 2, status_feedback = 4,
+                  status_interlock = 8;
+/**
+ * @brief 受信側の状態をハートビート用の10バイトへ符号化する。
+ * @param flags status_* のビット和。
+ * @param counter 送信ごとに増える連番。
+ */
+inline void encode_status(State state, uint8_t flags, uint32_t counter,
+                          std::array<uint8_t, status_size> &b) {
+  b[0] = 'S';
+  b[1] = 'T';
+  b[2] = 1;
+  b[3] = static_cast<uint8_t>(state);
+  b[4] = flags;
+  b[5] = 0;
+  write32(b.data() + 6, counter);
+}
 } // namespace sakura

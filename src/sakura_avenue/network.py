@@ -1,7 +1,7 @@
 """入力処理から独立したUDP送信アダプター。Wi-Fi接続はOSが管理する。"""
 
 import socket
-from .protocol import Packet, encode
+from .protocol import Packet, Status, decode_status, encode
 
 
 class UdpTransport:
@@ -17,6 +17,7 @@ class UdpTransport:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             self.socket.bind(("0.0.0.0", source_port))
+            self.socket.setblocking(False)
         except OSError:
             self.socket.close()
             raise
@@ -24,6 +25,22 @@ class UdpTransport:
     def send(self, packet: Packet) -> None:
         """パケットを符号化して送信する。到達は保証しない。"""
         self.socket.sendto(encode(packet), self.destination)
+
+    def poll_status(self) -> list[Status]:
+        """受信側からのハートビートを取り出す。送信先以外・不正なパケットは捨てる。"""
+        statuses = []
+        for _ in range(16):
+            try:
+                data, source = self.socket.recvfrom(64)
+            except (BlockingIOError, InterruptedError):
+                break
+            if source != self.destination:
+                continue
+            try:
+                statuses.append(decode_status(data))
+            except ValueError:
+                continue
+        return statuses
 
     def close(self) -> None:
         """ソケットを解放する。"""

@@ -1,5 +1,6 @@
 #include "device/c620.hpp"
 #include "control/control.hpp"
+#include "control/vehicle_config.hpp"
 #include "network/control_loop.hpp"
 #include "protocol/protocol.hpp"
 #include "network/receiver.hpp"
@@ -16,7 +17,51 @@ std::array<WheelConfig, 4> fixture() {
            {0, 1, 3.14159265359f, .1, 2, -1, 3},
            {-1, 0, -1.57079632679f, .1, 2, 1, 1}}};
 }
+// 実機の車体設定(vehicle_config.hpp)の回帰テスト。
+void vehicle_config_test() {
+  using namespace sakura::vehicle;
+  Omni omni(wheels()); // rank 3を満たし、例外にならない
+  Limits lim = kLimits;
+  // 正規化1.0の各軸が、モーター最大RPM以内に収まる(スケールで潰れない)。
+  float peak = 0;
+  for (DriveCommand c : {DriveCommand{lim.vx, 0, 0}, DriveCommand{0, lim.vy, 0},
+                         DriveCommand{0, 0, lim.wz}})
+    for (float v : omni.motor_rpm(c))
+      peak = std::max(peak, std::abs(v));
+  assert(peak <= lim.max_motor_rpm * 1.05f);
+  // 符号の構造: 前進は前の2輪(ID3,ID1)が同符号、後の2輪(ID2,ID4)が逆符号。
+  auto f = omni.motor_rpm({0.08f, 0, 0}); // index = ID-1
+  assert(f[2] * f[0] > 0 && f[1] * f[3] > 0 && f[2] * f[1] < 0);
+  assert(near(std::abs(f[0]), std::abs(f[1])));
+  // 旋回は4輪が同符号で等しい大きさ(接線駆動)。
+  auto y = omni.motor_rpm({0, 0, 0.32f});
+  for (int i = 1; i < 4; i++)
+    assert(y[i] * y[0] > 0 && near(std::abs(y[i]), std::abs(y[0])));
+  // 左移動は対角の輪が同符号。
+  auto l = omni.motor_rpm({0, 0.08f, 0});
+  assert(l[0] * l[1] < 0 && l[0] * l[3] > 0 && l[2] * l[1] > 0);
+  // 全IDがちょうど1度ずつ使われる。
+  bool used[4] = {};
+  for (auto &s : kSlots)
+    used[s.id - 1] = true;
+  assert(used[0] && used[1] && used[2] && used[3]);
+}
+// ハートビート(状態通知)の固定バイト列。protocol/specification.md と同じ値。
+void status_test() {
+  std::array<uint8_t, status_size> b{};
+  encode_status(State::Armed, status_wifi | status_can | status_feedback |
+                                  status_interlock, 0x01020304U, b);
+  const uint8_t armed[] = {'S', 'T', 1, 1, 0x0f, 0, 1, 2, 3, 4};
+  for (size_t i = 0; i < b.size(); i++)
+    assert(b[i] == armed[i]);
+  encode_status(State::Fault, status_wifi, 0, b);
+  const uint8_t fault[] = {'S', 'T', 1, 3, 0x01, 0, 0, 0, 0, 0};
+  for (size_t i = 0; i < b.size(); i++)
+    assert(b[i] == fault[i]);
+}
 int main() {
+  status_test();
+  vehicle_config_test();
   auto wheels = fixture();
   Omni omni(wheels);
   auto fwd = omni.motor_rpm({1, 0, 0});

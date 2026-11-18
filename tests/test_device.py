@@ -106,6 +106,9 @@ def test_cli_disconnect_disarms_and_releases(monkeypatch):
         def send(self, packet):
             packets.append(packet)
 
+        def poll_status(self):
+            return []
+
         def close(self):
             released.append("transport")
 

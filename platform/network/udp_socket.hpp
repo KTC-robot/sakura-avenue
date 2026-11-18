@@ -26,5 +26,10 @@ public:
    * @return ソケット処理を継続できる場合true。
    */
   bool poll(Receiver &receiver, uint64_t now, bool healthy);
+  /**
+   * @brief 指定先へ1 datagramを送る(状態通知用)。
+   * @return 送信できた場合true。失敗しても制御はFAULTにしない。
+   */
+  bool send_to(const char *ip, uint16_t port, const uint8_t *data, size_t size);
 };
 } // namespace sakura
