@@ -25,7 +25,7 @@ namespace {
 using namespace sakura;
 using namespace sakura::vehicle;
 
-constexpr uint32_t kPeriodUs = 5000;        // 制御周期 5ms(200Hz)
+constexpr uint32_t kPeriodUs = 5000;         // 制御周期 5ms(200Hz)
 constexpr uint32_t kFeedbackTimeoutMs = 100; // 全C620のFB期限
 // 接続試行(5GHzスキャン〜IP取得)が終わる前に reconnect() で打ち切らないよう長めにとる。
 constexpr uint32_t kWifiRetryMs = 15000;
@@ -70,10 +70,14 @@ void limitCurrents(CanFrame &frame) {
 
 const char *stateName(State s) {
   switch (s) {
-  case State::Disarm: return "DISARM";
-  case State::Armed: return "ARMED";
-  case State::Stop: return "STOP";
-  case State::Fault: return "FAULT";
+  case State::Disarm:
+    return "DISARM";
+  case State::Armed:
+    return "ARMED";
+  case State::Stop:
+    return "STOP";
+  case State::Fault:
+    return "FAULT";
   }
   return "?";
 }
@@ -97,7 +101,9 @@ void setup() {
   if (kInterlockGpio >= 0)
     pinMode(kInterlockGpio, INPUT);
   else
-    Serial.println("[sakura] 注意: 物理インターロックGPIO未設定。駆動電源の物理遮断のみに依存");
+    Serial.println(
+        "[sakura] 注意: "
+        "物理インターロックGPIO未設定。駆動電源の物理遮断のみに依存");
 
   // CANは受信(フィードバック)のみ開始。電流は ARM 中だけ送る。
   esp_err_t r = bus.begin(kCanTxGpio, kCanRxGpio);
@@ -198,7 +204,8 @@ void loop() {
   if (udp && now - lastHeartbeat >= kHeartbeatMs) {
     lastHeartbeat = now;
     uint8_t flags = (wifiUp ? status_wifi : 0) | (canOk ? status_can : 0) |
-                    (fresh ? status_feedback : 0) | (inter ? status_interlock : 0);
+                    (fresh ? status_feedback : 0) |
+                    (inter ? status_interlock : 0);
     std::array<uint8_t, status_size> beat;
     encode_status(receiver->safety.state, flags, heartbeatCount++, beat);
     udp->send_to(config::peer_ip, config::peer_port, beat.data(), beat.size());
@@ -207,8 +214,8 @@ void loop() {
   if (now - lastStatus >= kStatusMs && Serial.availableForWrite() >= 160) {
     lastStatus = now;
     Serial.printf("[sakura] %s wifi=%d can=%d fb=%d inter=%d rpm=%d,%d,%d,%d\n",
-                  stateName(receiver->safety.state), wifiUp, canOk, fresh, inter,
-                  feedback.rpm[0], feedback.rpm[1], feedback.rpm[2],
+                  stateName(receiver->safety.state), wifiUp, canOk, fresh,
+                  inter, feedback.rpm[0], feedback.rpm[1], feedback.rpm[2],
                   feedback.rpm[3]);
   }
 }

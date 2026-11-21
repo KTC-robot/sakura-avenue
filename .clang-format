@@ -1,0 +1,3 @@
+BasedOnStyle: LLVM
+# 日本語コメントが不自然に折り返されるのを防ぐ
+ReflowComments: false

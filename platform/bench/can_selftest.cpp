@@ -6,9 +6,9 @@
  * 正しく読み返されるかを数える。バスにつながるのは自分だけでよい。
  * モーターに電流指令は出さない(データは全て0)。
  */
-#include <Arduino.h>
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
+#include <Arduino.h>
 
 namespace {
 #ifndef CAN_TX_GPIO
@@ -38,14 +38,20 @@ bool onRx(twai_node_handle_t n, const twai_rx_done_event_data_t *, void *) {
   return false;
 }
 bool onErr(twai_node_handle_t, const twai_error_event_data_t *e, void *) {
-  if (e->err_flags.bit_err) errBit = errBit + 1;
-  if (e->err_flags.form_err) errForm = errForm + 1;
-  if (e->err_flags.stuff_err) errStuff = errStuff + 1;
-  if (e->err_flags.ack_err) errAck = errAck + 1;
-  if (e->err_flags.arb_lost) errArb = errArb + 1;
+  if (e->err_flags.bit_err)
+    errBit = errBit + 1;
+  if (e->err_flags.form_err)
+    errForm = errForm + 1;
+  if (e->err_flags.stuff_err)
+    errStuff = errStuff + 1;
+  if (e->err_flags.ack_err)
+    errAck = errAck + 1;
+  if (e->err_flags.arb_lost)
+    errArb = errArb + 1;
   return false;
 }
-bool onState(twai_node_handle_t, const twai_state_change_event_data_t *, void *) {
+bool onState(twai_node_handle_t, const twai_state_change_event_data_t *,
+             void *) {
   stateChanges = stateChanges + 1;
   return false;
 }
@@ -66,7 +72,8 @@ void setup() {
       delay(2);
       int r = digitalRead(kRx);
       seq += String(w) + "->" + String(r) + " ";
-      if (r == w) ok++;
+      if (r == w)
+        ok++;
     }
     Serial.printf("[selftest] 直結 TX=%d -> RX=%d : %s (%d/6) 書込->読出: %s\n",
                   kTx, kRx, ok == 6 ? "PASS" : "FAIL", ok, seq.c_str());
@@ -82,7 +89,8 @@ void setup() {
       int dn = digitalRead(p);
       pinMode(p, INPUT);
       Serial.printf("[selftest] GPIO%d 内部PU時=%d PD時=%d (他方が浮いていれば"
-                    "PU=1,PD=0)\n", p, up, dn);
+                    "PU=1,PD=0)\n",
+                    p, up, dn);
     }
   }
   twai_onchip_node_config_t cfg{};
@@ -101,8 +109,10 @@ void setup() {
   cb.on_rx_done = onRx;
   cb.on_error = onErr;
   cb.on_state_change = onState;
-  if (r == ESP_OK) r = twai_node_register_event_callbacks(node, &cb, nullptr);
-  if (r == ESP_OK) r = twai_node_enable(node);
+  if (r == ESP_OK)
+    r = twai_node_register_event_callbacks(node, &cb, nullptr);
+  if (r == ESP_OK)
+    r = twai_node_enable(node);
   Serial.printf("[selftest] TX=%d RX=%d init=%s (電流は常に0)\n", kTx, kRx,
                 esp_err_to_name(r));
   frame.header.id = 0x200;
@@ -122,13 +132,14 @@ void loop() {
     lastLog = now;
     twai_node_status_t st{};
     twai_node_record_t rec{};
-    if (node) twai_node_get_info(node, &st, &rec);
-    Serial.printf("tx ok=%lu fail=%lu | rx=%lu | err bit=%lu form=%lu stuff=%lu "
-                  "ack=%lu arb=%lu | state=%d tec=%u rec=%u\n",
-                  (unsigned long)txOk, (unsigned long)txFail,
-                  (unsigned long)rxCount, (unsigned long)errBit,
-                  (unsigned long)errForm, (unsigned long)errStuff,
-                  (unsigned long)errAck, (unsigned long)errArb, (int)st.state,
-                  st.tx_error_count, st.rx_error_count);
+    if (node)
+      twai_node_get_info(node, &st, &rec);
+    Serial.printf(
+        "tx ok=%lu fail=%lu | rx=%lu | err bit=%lu form=%lu stuff=%lu "
+        "ack=%lu arb=%lu | state=%d tec=%u rec=%u\n",
+        (unsigned long)txOk, (unsigned long)txFail, (unsigned long)rxCount,
+        (unsigned long)errBit, (unsigned long)errForm, (unsigned long)errStuff,
+        (unsigned long)errAck, (unsigned long)errArb, (int)st.state,
+        st.tx_error_count, st.rx_error_count);
   }
 }

@@ -1,7 +1,6 @@
 /**
  * @file safety.hpp
- * @brief
- * 受信指令の形式と、受信期限・連番・再許可による安全状態(セッション)を定義する。
+ * @brief 受信指令の形式と、受信期限・連番・再許可による安全状態(セッション)を定義する。
  */
 #pragma once
 #include "control/drive_command.hpp"

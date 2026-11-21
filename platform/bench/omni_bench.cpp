@@ -8,9 +8,8 @@
  *   g <kp> <ki>          PIゲインを変更する(停止中のみ)。
  *   recover              CAN異常ラッチを解除する(DISARM中のみ)。
  *   arm                  駆動を許可する。
- *   d <vx> <vy> <wz>     正規化要求(各軸
- * |v|<=1)を3秒間出す。+X前、+Y左、+wz反時計回り。 s | disarm
- * 即時ゼロ電流にしてDISARMへ戻る。
+ *   d <vx> <vy> <wz>     正規化要求(各軸 |v|<=1)を3秒間出す。+X前、+Y左、+wz反時計回り。
+ *   s | disarm           即時ゼロ電流にしてDISARMへ戻る。
  *
  * 車体の幾何は下の「車体設定」で定義する。取り付け符号は実機確認で決める。
  */
@@ -271,8 +270,7 @@ void loop() {
       Serial.println();
     }
   }
-  // ARM中と停止直後だけ送信する(DISARM中はバスにACK相手がいないとbus
-  // offを招く)。
+  // ARM中と停止直後だけ送信する(DISARM中はバスにACK相手がいないとbus offを招く)。
   if (armed || stopFrames > 0) {
     if (stopFrames > 0 && !armed)
       stopFrames--;

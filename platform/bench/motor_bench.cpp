@@ -23,14 +23,16 @@
 namespace {
 constexpr int kTxGpio = 23;
 constexpr int kRxGpio = 24;
-constexpr float kMaxRpm = 300.0f;        // 試験で許す目標RPMの絶対上限
+constexpr float kMaxRpm = 300.0f; // 試験で許す目標RPMの絶対上限
 constexpr int16_t kMaxCurrent = 1500;
-constexpr int16_t kMaxOpenLoop = 800;    // `c`コマンドの電流上限(生値)    // C620生値。参考上限3000の半分
-constexpr float kOverspeedRpm = 500.0f;  // 実測がこれを超えたら即停止(開ループ含む)
+constexpr int16_t kMaxOpenLoop =
+    800; // `c`コマンドの電流上限(生値)    // C620生値。参考上限3000の半分
+constexpr float kOverspeedRpm =
+    500.0f; // 実測がこれを超えたら即停止(開ループ含む)
 constexpr float kMaxKp = 20.0f, kMaxKi = 10.0f; // `g`コマンドのゲイン上限
-constexpr uint32_t kRunMs = 3000;        // 1回の指示の継続時間
+constexpr uint32_t kRunMs = 3000;               // 1回の指示の継続時間
 constexpr uint32_t kFeedbackTimeoutMs = 100;
-constexpr uint32_t kPeriodUs = 5000;     // 制御周期 5ms
+constexpr uint32_t kPeriodUs = 5000; // 制御周期 5ms
 constexpr uint32_t kLogMs = 100;
 
 sakura::TwaiBus bus;
@@ -40,8 +42,8 @@ std::array<bool, 4> everSeen{};
 std::array<SpeedController, 4> pi;
 
 bool armed = false;
-int stopFrames = 0; // 停止直後に送るゼロ電流フレームの残数
-int active = -1; // 0〜3、停止中は-1
+int stopFrames = 0;    // 停止直後に送るゼロ電流フレームの残数
+int active = -1;       // 0〜3、停止中は-1
 bool openLoop = false; // trueなら targetRpm を電流指令[カウント]として直接出す
 float targetRpm = 0;
 float gainKp = SPEED_KP, gainKi = SPEED_KI;
@@ -68,14 +70,15 @@ void printStatus(uint32_t now) {
   bool ok = bus.info(st);
   Serial.printf("[bench] armed=%d can_ok=%d active=%d gains kp=%.2f ki=%.2f\n",
                 armed, bus.healthy(), active + 1, gainKp, gainKi);
-  Serial.printf("  twai state=%d(0=active,1=warn,2=passive,3=busoff) tec=%u rec=%u "
-                "errors=%lu last_err=0x%02lx(1=arb,2=bit,4=form,8=stuff,16=ack,0x200=rx取得失敗) "
-                "state_changes=%lu rx_dropped=%lu\n",
-                ok ? (int)st.state : -1, ok ? st.tx_error_count : 0,
-                ok ? st.rx_error_count : 0, (unsigned long)bus.error_count(),
-                (unsigned long)bus.last_error(),
-                (unsigned long)bus.state_change_count(),
-                (unsigned long)bus.rx_dropped());
+  Serial.printf(
+      "  twai state=%d(0=active,1=warn,2=passive,3=busoff) tec=%u rec=%u "
+      "errors=%lu "
+      "last_err=0x%02lx(1=arb,2=bit,4=form,8=stuff,16=ack,0x200=rx取得失敗) "
+      "state_changes=%lu rx_dropped=%lu\n",
+      ok ? (int)st.state : -1, ok ? st.tx_error_count : 0,
+      ok ? st.rx_error_count : 0, (unsigned long)bus.error_count(),
+      (unsigned long)bus.last_error(), (unsigned long)bus.state_change_count(),
+      (unsigned long)bus.rx_dropped());
   for (int i = 0; i < 4; i++) {
     if (!everSeen[i]) {
       Serial.printf("  ID%d: no feedback\n", i + 1);
@@ -111,8 +114,8 @@ void handle(const String &cmd, uint32_t now) {
   } else if (cmd.startsWith("m ")) {
     int id = 0;
     float rpm = 0;
-    if (sscanf(cmd.c_str() + 2, "%d %f", &id, &rpm) != 2 || id < 1 ||
-        id > 4 || !std::isfinite(rpm) || std::fabs(rpm) > kMaxRpm) {
+    if (sscanf(cmd.c_str() + 2, "%d %f", &id, &rpm) != 2 || id < 1 || id > 4 ||
+        !std::isfinite(rpm) || std::fabs(rpm) > kMaxRpm) {
       Serial.printf("[bench] refuse: usage m <1-4> <rpm |rpm|<=%.0f>\n",
                     kMaxRpm);
       return;
@@ -137,8 +140,9 @@ void handle(const String &cmd, uint32_t now) {
     if (active >= 0 || sscanf(cmd.c_str() + 2, "%f %f", &kp, &ki) != 2 ||
         !std::isfinite(kp) || !std::isfinite(ki) || kp < 0 || ki < 0 ||
         kp > kMaxKp || ki > kMaxKi) {
-      Serial.printf("[bench] refuse: usage g <kp 0-%.0f> <ki 0-%.0f> (停止中のみ)\n",
-                    kMaxKp, kMaxKi);
+      Serial.printf(
+          "[bench] refuse: usage g <kp 0-%.0f> <ki 0-%.0f> (停止中のみ)\n",
+          kMaxKp, kMaxKi);
       return;
     }
     gainKp = kp;
@@ -171,7 +175,8 @@ void handle(const String &cmd, uint32_t now) {
     Serial.printf("[bench] OPEN-LOOP ID%d current=%d counts for %lu ms\n", id,
                   counts, static_cast<unsigned long>(kRunMs));
   } else if (cmd.length()) {
-    Serial.println("[bench] commands: status | recover | arm | disarm | s | m <id> <rpm> | c <id> <counts> | g <kp> <ki>");
+    Serial.println("[bench] commands: status | recover | arm | disarm | s | m "
+                   "<id> <rpm> | c <id> <counts> | g <kp> <ki>");
   }
 }
 } // namespace
@@ -220,7 +225,8 @@ void loop() {
       stopAll("CAN fault");
     else if (!fresh(active, now))
       stopAll("feedback lost");
-    else if (std::fabs(static_cast<float>(feedback.rpm[active])) > kOverspeedRpm)
+    else if (std::fabs(static_cast<float>(feedback.rpm[active])) >
+             kOverspeedRpm)
       stopAll("overspeed");
     else if (now - runStart > kRunMs)
       stopAll("run time elapsed");
