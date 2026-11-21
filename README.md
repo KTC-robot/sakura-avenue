@@ -51,6 +51,8 @@ pio run -e esp32c5_rx
 pio run -e esp32c5_omni_bench
 ```
 
+実機を動かす手順は [始め方](docs/getting_started.md) を参照してください。
+
 ドキュメントの読み順と夏の資料との対応は [docs一覧](docs/README.md)を参照してください。
 
 詳しくは [Piセットアップ](docs/setup_pi.md)、[ESP32-C5セットアップ](docs/setup_esp32c5.md)、[実機ベンチ試験](docs/bench.md)、[検証記録](docs/validation.md)を参照してください。今回、実機への書き込みは行いません。

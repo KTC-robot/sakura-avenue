@@ -29,6 +29,7 @@ VS Codeでは拡張 `platformio.platformio-ide` を使用します(`pioarduino-i
 |---|---|
 | `wifi_ssid` / `wifi_password` / `wifi_country` | 5GHz APの資格情報(パスワードは8〜63文字)と国コード |
 | `peer_ip` / `peer_port` | 許可する送信元(Pi)。`peer_port` はPiの `--source-port` と一致させる。ハートビートの返送先でもある |
+| `static_ip` / `static_gateway` / `static_subnet` | ESPの固定IP。3つとも指定、空欄ならDHCP。例 `10.42.0.50` / `10.42.0.1` / `255.255.255.0` |
 | `listen_port` | ESPが待ち受けるUDPポート。Piの `--port` と一致させる |
 
 `config.local.hpp` が無い環境(CIなど)では例ファイルが使われ、空欄のため無線を開始せず、駆動もしません(`esp32c5_rx` のビルドは通ります)。

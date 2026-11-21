@@ -85,6 +85,7 @@ void setup() {
 
   try {
     chassis.emplace(wheels(), kLimits);
+    chassis->set_gains(kSpeedKp, kSpeedKi);
     receiver.emplace(config::peer_ip, config::peer_port);
     loop_.emplace(*receiver, *chassis, feedback);
     configOk = true;
@@ -104,7 +105,8 @@ void setup() {
 
   if (configOk) {
     wifiStarted = wifi.begin(config::wifi_ssid, config::wifi_password,
-                             config::wifi_country);
+                             config::wifi_country, config::static_ip,
+                             config::static_gateway, config::static_subnet);
     Serial.printf("[sakura] Wi-Fi 5GHz STA: %s\n",
                   wifiStarted ? "接続開始" : "設定不足のため無効");
   }

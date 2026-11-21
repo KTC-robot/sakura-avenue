@@ -44,6 +44,12 @@ constexpr const char *kSlotNames[4] = {"前左", "前右", "後左", "後右"};
  * 初期の低速値。正規化1.0でモーター約300RPMに収まる。実走行前に見直す。
  */
 constexpr Limits kLimits = {0.08f, 0.08f, 0.32f, 300.0f, 600.0f, 0.05f};
+/**
+ * 速度PIゲイン。夏の参考値(kp=1, ki=0.2)では取り付け負荷を超えられず、
+ * 低速指令で車輪が回らない。実機ベンチで100RPMが回った 10 / 3 を使う。
+ */
+constexpr float kSpeedKp = 10.0f;
+constexpr float kSpeedKi = 3.0f;
 /// 電流指令(C620生値)の上限。参考上限3000の半分。
 constexpr int16_t kMaxCurrent = 1500;
 /// 実測がこれを超えたらFAULT[RPM]。

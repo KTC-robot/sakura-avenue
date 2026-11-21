@@ -42,7 +42,7 @@ bool armed = false, running = false;
 int stopFrames = 0;
 sakura::DriveCommand demand{};
 uint32_t runStart = 0;
-float gainKp = SPEED_KP, gainKi = SPEED_KI;
+float gainKp = kSpeedKp, gainKi = kSpeedKi;
 String line;
 
 const char *slotName(int idx) { return kSlotNames[idx]; }
@@ -190,6 +190,7 @@ void setup() {
   try {
     omni.emplace(wheels());
     chassis.emplace(wheels(), kLimits);
+    chassis->set_gains(kSpeedKp, kSpeedKi);
     Serial.println("[omni] geometry OK (rank=3)");
   } catch (const std::exception &e) {
     Serial.printf("[omni] geometry/limits rejected: %s. 駆動不可\n", e.what());
