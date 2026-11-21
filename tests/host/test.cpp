@@ -1,11 +1,12 @@
-#include "device/c620.hpp"
-#include "control/control.hpp"
+#include "control/chassis.hpp"
 #include "control/vehicle_config.hpp"
+#include "device/c620.hpp"
 #include "network/control_loop.hpp"
-#include "protocol/protocol.hpp"
 #include "network/receiver.hpp"
+#include "protocol/protocol.hpp"
 #include "vectors.hpp"
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <limits>
 using namespace sakura;
@@ -53,8 +54,9 @@ void vehicle_config_test() {
 // ハートビート(状態通知)の固定バイト列。protocol/specification.md と同じ値。
 void status_test() {
   std::array<uint8_t, status_size> b{};
-  encode_status(State::Armed, status_wifi | status_can | status_feedback |
-                                  status_interlock, 0x01020304U, b);
+  encode_status(State::Armed,
+                status_wifi | status_can | status_feedback | status_interlock,
+                0x01020304U, b);
   const uint8_t armed[] = {'S', 'T', 1, 1, 0x0f, 0, 1, 2, 3, 4};
   for (size_t i = 0; i < b.size(); i++)
     assert(b[i] == armed[i]);

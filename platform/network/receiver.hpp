@@ -18,11 +18,9 @@ public:
   DriveCommand demand{};
   /**
    * @brief 許可する送信元IPとポートを設定する。
+   * @throws std::invalid_argument peerが空またはportが0の場合。
    */
-  Receiver(std::string peer, uint16_t port) : peer_(peer), port_(port) {
-    if (peer.empty() || port == 0)
-      throw std::invalid_argument("explicit trusted peer required");
-  }
+  Receiver(std::string peer, uint16_t port);
   /**
    * @brief 受信指令を検証し、安全状態と要求値を更新する。
    * @param now 単調時計[ms]。
@@ -30,27 +28,10 @@ public:
    * @return 更新後がARMEDならtrue。
    */
   bool receive(const std::string &ip, uint16_t port, const uint8_t *bytes,
-               size_t size, uint64_t now, bool healthy) {
-    if (ip != peer_ || port != port_)
-      return false;
-    Packet packet;
-    if (!decode(bytes, size, packet)) {
-      safety.fault();
-      demand = {};
-      return false;
-    }
-    bool armed = safety.accept(packet, now, healthy);
-    demand = armed && packet.action == Action::Drive ? packet.command
-                                                     : DriveCommand{};
-    return armed;
-  }
+               size_t size, uint64_t now, bool healthy);
   /**
    * @brief 受信期限を監視し、停止時の要求値をゼロにする。
    */
-  void tick(uint64_t now, bool healthy) {
-    safety.tick(now, healthy);
-    if (safety.state != State::Armed)
-      demand = {};
-  }
+  void tick(uint64_t now, bool healthy);
 };
 } // namespace sakura

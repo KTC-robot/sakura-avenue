@@ -6,8 +6,10 @@
  * 取り付け符号は実機の回転方向確認後に更新する。
  */
 #pragma once
-#include "control/control.hpp"
+#include "control/chassis.hpp"
+#include <array>
 #include <cmath>
+#include <cstdint>
 
 namespace sakura::vehicle {
 /// CAN(TWAI)のGPIO。外付けトランシーバー(WCMCU-1051)へ接続。
@@ -17,7 +19,8 @@ constexpr int kCanRxGpio = 24;
 constexpr int kInterlockGpio = -1;
 /// trueなら入力がHIGHで駆動許可、falseならLOWで許可。
 constexpr bool kInterlockActiveHigh = true;
-constexpr float kPi = 3.14159265358979f;
+constexpr float kPi = static_cast<float>(M_PI);
+constexpr float kHalfTurnDeg = 180.0f;  ///< kPi[rad]に相当する角度[deg]。
 constexpr float kCenterToWheel = 0.25f; ///< 車体中心から各輪まで[m]
 constexpr float kWheelRadius = 0.05f;   ///< 車輪半径[m](直径100mm)
 constexpr float kGearRatio = 19.0f;     ///< M3508 P19
@@ -66,8 +69,10 @@ constexpr float kSlewRpmPerS = kMaxMotorRpm;
  */
 constexpr Limits kLimits = {kMaxWheelSpeed / 0.70710678f,
                             kMaxWheelSpeed / 0.70710678f,
-                            kMaxWheelSpeed / kCenterToWheel, kMaxMotorRpm,
-                            kSlewRpmPerS, 0.05f};
+                            kMaxWheelSpeed / kCenterToWheel,
+                            kMaxMotorRpm,
+                            kSlewRpmPerS,
+                            0.05f};
 /**
  * @brief 車輪を浮かせたベンチ用の低速値。正規化1.0でモーター約300RPM。
  * omni_benchはこちらを使う(最高速の試験は接地走行でのみ行う)。
@@ -89,14 +94,5 @@ constexpr float kOverspeedRpm = kMotorMaxRpm;
 /**
  * @brief kSlotsから車輪設定を生成する。駆動方向は接線(位置角+90度)。
  */
-inline std::array<WheelConfig, 4> wheels() {
-  std::array<WheelConfig, 4> w{};
-  for (int i = 0; i < 4; i++) {
-    float phi = kSlots[i].angle_deg * kPi / 180.0f;
-    w[i] = {kCenterToWheel * std::cos(phi), kCenterToWheel * std::sin(phi),
-            phi + kPi / 2.0f, kWheelRadius, kGearRatio, kSlots[i].sign,
-            static_cast<uint8_t>(kSlots[i].id - 1)};
-  }
-  return w;
-}
+std::array<WheelConfig, 4> wheels();
 } // namespace sakura::vehicle

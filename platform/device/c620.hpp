@@ -3,11 +3,21 @@
  * @brief 夏のC620フレーム仕様とフィードバック監視をTWAIから分離する。
  */
 #pragma once
-#include <algorithm>
 #include <array>
 #include <cstdint>
 namespace sakura {
 constexpr uint32_t c620_command_id = 0x200;
+/// C620フィードバックのID範囲(モーターID1〜4)。
+constexpr uint32_t c620_feedback_id_first = 0x201;
+constexpr int c620_motor_count = 4;
+constexpr uint32_t c620_feedback_id_last =
+    c620_feedback_id_first + c620_motor_count - 1;
+/// C620生指令値の参考上限(±)。
+constexpr int c620_current_limit = 3000;
+/// Classic CANフレームのデータ長。
+constexpr uint8_t can_data_size = 8;
+/// フィードバック受信の期限既定値[ms]。
+constexpr uint64_t c620_feedback_timeout_ms = 100;
 /**
  * @brief Classic CANの8バイトフレーム。
  */
@@ -22,18 +32,7 @@ struct CanFrame {
  * @param currents C620生指令値（Aではない）。
  * @return 参考上限±3000を適用したフレーム。
  */
-inline CanFrame current_frame(std::array<int16_t, 4> currents) {
-  CanFrame f;
-  f.id = c620_command_id;
-  f.size = 8;
-  for (int i = 0; i < 4; i++) {
-    int16_t c = std::clamp<int>(currents[i], -3000, 3000);
-    uint16_t u = static_cast<uint16_t>(c);
-    f.data[2 * i] = u >> 8;
-    f.data[2 * i + 1] = u & 255;
-  }
-  return f;
-}
+CanFrame current_frame(std::array<int16_t, 4> currents);
 /**
  * @brief ID1〜4のフィードバックと受信時刻を保持する。
  */
@@ -50,32 +49,13 @@ public:
    * @param now 単調時計[ms]。
    * @return 有効なフレームならtrue。
    */
-  bool receive(const CanFrame &f, uint64_t now) {
-    if (f.extended || f.remote || f.fd || f.size != 8 || f.id < 0x201 ||
-        f.id > 0x204)
-      return false;
-    int i = f.id - 0x201;
-    auto u = [&](int p) {
-      return uint16_t(uint16_t(f.data[p]) << 8 | f.data[p + 1]);
-    };
-    angle[i] = u(0);
-    rpm[i] = static_cast<int16_t>(u(2));
-    current[i] = static_cast<int16_t>(u(4));
-    temperature[i] = f.data[6];
-    time_[i] = now;
-    seen_[i] = true;
-    return true;
-  }
+  bool receive(const CanFrame &f, uint64_t now);
   /**
    * @brief 全モーターの受信期限を検査する。
    * @param now 単調時計[ms]。
    * @return 4台すべて受信済みかつ期限内ならtrue。
    */
-  bool fresh(uint64_t now, uint64_t timeout_ms = 100) const {
-    for (int i = 0; i < 4; i++)
-      if (!seen_[i] || now < time_[i] || now - time_[i] > timeout_ms)
-        return false;
-    return true;
-  }
+  bool fresh(uint64_t now,
+             uint64_t timeout_ms = c620_feedback_timeout_ms) const;
 };
 } // namespace sakura

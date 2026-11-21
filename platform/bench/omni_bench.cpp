@@ -8,12 +8,14 @@
  *   g <kp> <ki>          PIゲインを変更する(停止中のみ)。
  *   recover              CAN異常ラッチを解除する(DISARM中のみ)。
  *   arm                  駆動を許可する。
- *   d <vx> <vy> <wz>     正規化要求(各軸 |v|<=1)を3秒間出す。+X前、+Y左、+wz反時計回り。
- *   s | disarm           即時ゼロ電流にしてDISARMへ戻る。
+ *   d <vx> <vy> <wz>     正規化要求(各軸
+ * |v|<=1)を3秒間出す。+X前、+Y左、+wz反時計回り。 s | disarm
+ * 即時ゼロ電流にしてDISARMへ戻る。
  *
  * 車体の幾何は下の「車体設定」で定義する。取り付け符号は実機確認で決める。
  */
-#include "control/control.hpp"
+#include "control/chassis.hpp"
+#include "control/omni.hpp"
 #include "control/vehicle_config.hpp"
 #include "device/c620.hpp"
 #include "device/twai_bus.hpp"
@@ -80,11 +82,10 @@ void printStatus(uint32_t now) {
     if (!everSeen[id])
       Serial.printf("  ID%d(%s): no feedback\n", id + 1, slotName(i));
     else
-      Serial.printf("  ID%d(%s): %s rpm=%d cur=%d temp=%u\n", id + 1,
-                    slotName(i),
-                    now - lastSeen[id] <= kFeedbackTimeoutMs ? "fresh" : "STALE",
-                    feedback.rpm[id], feedback.current[id],
-                    feedback.temperature[id]);
+      Serial.printf(
+          "  ID%d(%s): %s rpm=%d cur=%d temp=%u\n", id + 1, slotName(i),
+          now - lastSeen[id] <= kFeedbackTimeoutMs ? "fresh" : "STALE",
+          feedback.rpm[id], feedback.current[id], feedback.temperature[id]);
   }
 }
 
@@ -102,9 +103,10 @@ void plan(float vx, float vy, float wz) {
   float peak = 0;
   for (float v : rpm)
     peak = std::max(peak, std::fabs(v));
-  float scale = peak > kBenchLimits.max_motor_rpm ? kBenchLimits.max_motor_rpm / peak : 1;
-  Serial.printf("[omni] plan vx=%.2f vy=%.2f wz=%.2f (scale=%.2f)\n", vx, vy, wz,
-                scale);
+  float scale =
+      peak > kBenchLimits.max_motor_rpm ? kBenchLimits.max_motor_rpm / peak : 1;
+  Serial.printf("[omni] plan vx=%.2f vy=%.2f wz=%.2f (scale=%.2f)\n", vx, vy,
+                wz, scale);
   for (int i = 0; i < 4; i++)
     Serial.printf("  ID%d(%s): target %+.0f rpm\n", kSlots[i].id, slotName(i),
                   rpm[kSlots[i].id - 1] * scale);
@@ -196,8 +198,8 @@ void setup() {
     Serial.printf("[omni] geometry/limits rejected: %s. 駆動不可\n", e.what());
   }
   esp_err_t r = bus.begin(kTxGpio, kRxGpio);
-  Serial.printf("[omni] TWAI TX=%d RX=%d begin=%s. DISARMED.\n", kTxGpio, kRxGpio,
-                esp_err_to_name(r));
+  Serial.printf("[omni] TWAI TX=%d RX=%d begin=%s. DISARMED.\n", kTxGpio,
+                kRxGpio, esp_err_to_name(r));
   Serial.println("[omni] wheels must be off the ground. 'status' then 'plan'.");
 }
 
@@ -234,7 +236,8 @@ void loop() {
   if (running) {
     bool over = false;
     for (int i = 0; i < 4; i++)
-      over |= std::fabs(static_cast<float>(feedback.rpm[i])) > kBenchOverspeedRpm;
+      over |=
+          std::fabs(static_cast<float>(feedback.rpm[i])) > kBenchOverspeedRpm;
     if (!bus.healthy())
       stopAll("CAN fault");
     else if (!freshAll(now))
@@ -263,11 +266,13 @@ void loop() {
       auto t = chassis->targets();
       Serial.printf("tgt/rpm/cmd: ");
       for (int i = 0; i < 4; i++)
-        Serial.printf("ID%d %+.0f/%d/%d  ", i + 1, t[i], feedback.rpm[i], cur[i]);
+        Serial.printf("ID%d %+.0f/%d/%d  ", i + 1, t[i], feedback.rpm[i],
+                      cur[i]);
       Serial.println();
     }
   }
-  // ARM中と停止直後だけ送信する(DISARM中はバスにACK相手がいないとbus offを招く)。
+  // ARM中と停止直後だけ送信する(DISARM中はバスにACK相手がいないとbus
+  // offを招く)。
   if (armed || stopFrames > 0) {
     if (stopFrames > 0 && !armed)
       stopFrames--;
