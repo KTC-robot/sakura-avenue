@@ -95,14 +95,14 @@ void plan(float vx, float vy, float wz) {
     return;
   }
   auto dz = [](float v, float max) {
-    return std::fabs(v) < kLimits.deadzone ? 0.0f : v * max;
+    return std::fabs(v) < kBenchLimits.deadzone ? 0.0f : v * max;
   };
-  auto rpm = omni->motor_rpm({dz(vx, kLimits.vx), dz(vy, kLimits.vy),
-                              dz(wz, kLimits.wz)});
+  auto rpm = omni->motor_rpm({dz(vx, kBenchLimits.vx), dz(vy, kBenchLimits.vy),
+                              dz(wz, kBenchLimits.wz)});
   float peak = 0;
   for (float v : rpm)
     peak = std::max(peak, std::fabs(v));
-  float scale = peak > kLimits.max_motor_rpm ? kLimits.max_motor_rpm / peak : 1;
+  float scale = peak > kBenchLimits.max_motor_rpm ? kBenchLimits.max_motor_rpm / peak : 1;
   Serial.printf("[omni] plan vx=%.2f vy=%.2f wz=%.2f (scale=%.2f)\n", vx, vy, wz,
                 scale);
   for (int i = 0; i < 4; i++)
@@ -189,7 +189,7 @@ void setup() {
   delay(500);
   try {
     omni.emplace(wheels());
-    chassis.emplace(wheels(), kLimits);
+    chassis.emplace(wheels(), kBenchLimits);
     chassis->set_gains(kSpeedKp, kSpeedKi);
     Serial.println("[omni] geometry OK (rank=3)");
   } catch (const std::exception &e) {
@@ -234,7 +234,7 @@ void loop() {
   if (running) {
     bool over = false;
     for (int i = 0; i < 4; i++)
-      over |= std::fabs(static_cast<float>(feedback.rpm[i])) > kOverspeedRpm;
+      over |= std::fabs(static_cast<float>(feedback.rpm[i])) > kBenchOverspeedRpm;
     if (!bus.healthy())
       stopAll("CAN fault");
     else if (!freshAll(now))

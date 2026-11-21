@@ -8,7 +8,7 @@ CLIは `ArmSession`(`session.py`)に従い、コントローラー接続後、�
 
 ESP側: `UdpSocket`（明示したローカルIP/portでbind）→ `Receiver`（送信元、形式、順序）→ `Safety` → `ControlLoop` → `Chassis` → `Omni` → `SpeedController ×4` → `current_frame` → `TwaiBus`。
 
-`platform/main.cpp` が上記を実タスクに結合しています。起動時は必ずDISARMで、Piからのニュートラル DISARM → 明示ARM → DRIVE の順でのみ駆動します。Wi-Fi・CAN・全C620のフィードバック(100ms)・インターロックのどれかが欠けるとFAULTです。実測RPMが500RPMを超えてもFAULTです。電流指令は±1500(C620生値)に制限します。
+`platform/main.cpp` が上記を実タスクに結合しています。起動時は必ずDISARMで、Piからのニュートラル DISARM → 明示ARM → DRIVE の順でのみ駆動します。Wi-Fi・CAN・全C620のフィードバック(100ms)・インターロックのどれかが欠けるとFAULTです。実測RPMがモーター最高回転数(`kMotorMaxRpm`)を超えてもFAULTです。スティック全開の速度は、最高回転数の80%(`kSpeedFraction`)です。ベンチ(`omni_bench`)だけは低速値(`kBenchLimits`、約300RPM、過速度500RPM)を使います。電流指令は±1500(C620生値)に制限します。
 
 車体の寸法・ID配置・速度上限は `platform/control/vehicle_config.hpp` に集約しています(ベンチと共有)。CANはARM中と停止直後(ゼロ電流5フレーム)のみ送信し、DISARM中は送信しません(ACK相手がいないとbus offになるため)。CAN異常はDISARM中だけ自動復旧を試み、復旧後もARMにはPiの明示操作が必要です。
 

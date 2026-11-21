@@ -60,7 +60,9 @@ uv run sakura-pilot --host 10.42.0.50 --port 50000 --source-port 50001
 
 1. コントローラー(PS)をBluetoothまたはUSBで接続します。
 2. スティックをニュートラルのまま約1秒保つと、自動でARMされます。
-3. 以降、左スティックで並進、右スティック左右で旋回、L2/R2で低速です。
+3. 以降、左スティックで並進、右スティック左右で旋回、L2/R2で低速(0.25倍)です。
+
+スティック全開の速度は、`platform/control/vehicle_config.hpp` の `kSpeedFraction`(最高速に対する割合、現在0.8)で決まります。最高回転数は `kOutputRatedRpm`(M3508 P19の定格482RPM×減速比19)で、全開は約7300RPM(車輪周速約2m/s)です。**初めての接地走行は `kSpeedFraction` を小さくして始めてください。**
 4. PSボタンまたはCtrl-Cで停止します(DISARMを送って終了)。
 
 Piのログに `STATUS=ARMED モータOK` が1秒ごとに出れば、通信とモーターは健全です。`--no-arm` を付けるとDISARMのみで、ARM/DRIVEは送りません。

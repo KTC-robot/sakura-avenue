@@ -40,10 +40,41 @@ constexpr Slot kSlots[4] = {
 };
 constexpr const char *kSlotNames[4] = {"前左", "前右", "後左", "後右"};
 /**
- * @brief 正規化要求1.0あたりの車体速度とRPM/slew/deadzone。
- * 初期の低速値。正規化1.0でモーター約300RPMに収まる。実走行前に見直す。
+ * @name 最高出力の制限
+ * 正規化1.0(スティック全開)でモーターが出す速度は、ここだけで決まる。
+ * 速度を変えたいときは kSpeedFraction を変える。
+ * @{
  */
-constexpr Limits kLimits = {0.08f, 0.08f, 0.32f, 300.0f, 600.0f, 0.05f};
+/// M3508 P19の定格出力軸回転数[RPM](メーカー値。電源電圧24V前提)。
+constexpr float kOutputRatedRpm = 482.0f;
+/// モーター軸(C620のフィードバックと同じ軸)の最高回転数[RPM]。
+constexpr float kMotorMaxRpm = kOutputRatedRpm * kGearRatio;
+/// 最高速に対する使用割合。スティック全開でこの割合まで出す。
+constexpr float kSpeedFraction = 0.8f;
+/// 制御上のモーター最大RPM(正規化1.0で出る値)。
+constexpr float kMaxMotorRpm = kMotorMaxRpm * kSpeedFraction;
+/// 上記RPMのときの車輪の周速[m/s]。
+constexpr float kMaxWheelSpeed =
+    kMaxMotorRpm / kGearRatio * 2.0f * kPi * kWheelRadius / 60.0f;
+/// 加減速の上限[RPM/s]。0から最大まで約1秒。
+constexpr float kSlewRpmPerS = kMaxMotorRpm;
+/// @}
+/**
+ * @brief 正規化要求1.0あたりの車体速度とRPM/slew/deadzone。
+ * 並進は45度配置の車輪1本あたり cos45 倍になるので、車体速度は周速/cos45。
+ * 旋回は全輪が半径kCenterToWheelの接線なので、角速度は周速/半径。
+ */
+constexpr Limits kLimits = {kMaxWheelSpeed / 0.70710678f,
+                            kMaxWheelSpeed / 0.70710678f,
+                            kMaxWheelSpeed / kCenterToWheel, kMaxMotorRpm,
+                            kSlewRpmPerS, 0.05f};
+/**
+ * @brief 車輪を浮かせたベンチ用の低速値。正規化1.0でモーター約300RPM。
+ * omni_benchはこちらを使う(最高速の試験は接地走行でのみ行う)。
+ */
+constexpr Limits kBenchLimits = {0.08f, 0.08f, 0.32f, 300.0f, 600.0f, 0.05f};
+/// ベンチの過速度停止[RPM]。
+constexpr float kBenchOverspeedRpm = 500.0f;
 /**
  * 速度PIゲイン。夏の参考値(kp=1, ki=0.2)では取り付け負荷を超えられず、
  * 低速指令で車輪が回らない。実機ベンチで100RPMが回った 10 / 3 を使う。
@@ -52,8 +83,8 @@ constexpr float kSpeedKp = 10.0f;
 constexpr float kSpeedKi = 3.0f;
 /// 電流指令(C620生値)の上限。参考上限3000の半分。
 constexpr int16_t kMaxCurrent = 1500;
-/// 実測がこれを超えたらFAULT[RPM]。
-constexpr float kOverspeedRpm = 500.0f;
+/// 実測がこれを超えたらFAULT[RPM]。モーター最高回転数。
+constexpr float kOverspeedRpm = kMotorMaxRpm;
 
 /**
  * @brief kSlotsから車輪設定を生成する。駆動方向は接線(位置角+90度)。

@@ -29,6 +29,10 @@ void vehicle_config_test() {
     for (float v : omni.motor_rpm(c))
       peak = std::max(peak, std::abs(v));
   assert(peak <= lim.max_motor_rpm * 1.05f);
+  // 全開で最高速の80%が出る。過速度の閾値は最高速以上、電流上限は変えない。
+  assert(near(lim.max_motor_rpm, kMotorMaxRpm * 0.8f));
+  assert(peak >= lim.max_motor_rpm * 0.95f);
+  assert(kOverspeedRpm >= kMotorMaxRpm);
   // 符号の構造: 前進は前の2輪(ID3,ID1)が同符号、後の2輪(ID2,ID4)が逆符号。
   auto f = omni.motor_rpm({0.08f, 0, 0}); // index = ID-1
   assert(f[2] * f[0] > 0 && f[1] * f[3] > 0 && f[2] * f[1] < 0);
