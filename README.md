@@ -39,6 +39,8 @@ uv run pytest -q
 uv run sakura-pilot --verbose   # 入力プレビュー。モーター駆動なし
 ```
 
+コミット前フック(ステージしたファイルに ruff / clang-format / clang-tidy)を有効にするには、クローン後に一度だけ `git config core.hooksPath .githooks` を実行します。clang-format・clang-tidy・CMakeが必要です。
+
 ```bash
 # リポジトリルートから。実機不要
 cmake -S tests/host -B build/host -DCMAKE_BUILD_TYPE=Debug
