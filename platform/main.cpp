@@ -27,7 +27,8 @@ using namespace sakura::vehicle;
 
 constexpr uint32_t kPeriodUs = 5000;        // 制御周期 5ms(200Hz)
 constexpr uint32_t kFeedbackTimeoutMs = 100; // 全C620のFB期限
-constexpr uint32_t kWifiRetryMs = 3000;
+// 接続試行(5GHzスキャン〜IP取得)が終わる前に reconnect() で打ち切らないよう長めにとる。
+constexpr uint32_t kWifiRetryMs = 15000;
 constexpr uint32_t kCanRecoverMs = 500;
 constexpr uint32_t kStatusMs = 1000;
 constexpr uint32_t kHeartbeatMs = 1000; // ESP→Pi 状態通知の周期
@@ -109,6 +110,7 @@ void setup() {
                              config::static_gateway, config::static_subnet);
     Serial.printf("[sakura] Wi-Fi 5GHz STA: %s\n",
                   wifiStarted ? "接続開始" : "設定不足のため無効");
+    lastWifiTry = millis(); // 最初の接続試行を再接続で中断しない
   }
   lastStepUs = micros();
 }
@@ -138,6 +140,8 @@ void loop() {
   wifiWasUp = wifiUp;
   if (wifiStarted && !wifiUp && now - lastWifiTry >= kWifiRetryMs) {
     lastWifiTry = now;
+    Serial.printf("[sakura] Wi-Fi未接続(status=%d) → 再接続\n",
+                  static_cast<int>(WiFi.status()));
     WiFi.reconnect();
   }
 
