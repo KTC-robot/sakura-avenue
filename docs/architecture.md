@@ -4,7 +4,7 @@
 
 Pi側: `ControllerDevice`（evdevと自動検出）→ `ControllerState`（軸/ボタン）→ `CommandMapper`（正規化・deadzone・slow）→ `DriveCommand` → `UdpTransport`。
 
-CLIは `ArmSession`(`session.py`)に従い、コントローラー接続後、スティックがニュートラルのまま `--link-time` 続いたらARMを送り、以降DRIVEを送ります。切断時はDISARMで終了し、再接続は起動し直しです。`--no-arm` ならDISARMのみです。受信側は1秒に1回、状態(`STATUS`)と「モータOK/NG」をPiへ返し、PiはログとSTATUS途絶の警告に使います(情報用で、制御には使いません)。evdevは任意依存であり、純粋入力モデル・マッパー・通信テストは実機なしで動きます。アダプターテストは疑似デバイスとイベントを使います。
+CLIは `ArmSession`(`session.py`)に従い、コントローラー接続後、スティックがニュートラルのまま `--link-time` 続いたらARMを送り、以降DRIVEを送ります。切断時はDISARMで終了し、再接続は起動し直しです。`--no-arm` ならDISARMのみです。受信側は1秒に1回、状態(`STATUS`)と「モータOK/NG」をPiへ返し、PiはログとSTATUS途絶の警告に使います。DRIVE送信中に受信側がARMEDでないと報告した場合(起動が遅れてARMを受け付けなかった、走行中にFAULTへ落ちた等)、Piは `ArmSession.on_status` でLINKINGへ戻り、DISARM→ARMをやり直します。evdevは任意依存であり、純粋入力モデル・マッパー・通信テストは実機なしで動きます。アダプターテストは疑似デバイスとイベントを使います。
 
 ESP側: `UdpSocket`（明示したローカルIP/portでbind）→ `Receiver`（送信元、形式、順序）→ `Safety` → `ControlLoop` → `Chassis` → `Omni` → `SpeedController ×4` → `current_frame` → `TwaiBus`。
 

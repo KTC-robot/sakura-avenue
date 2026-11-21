@@ -162,3 +162,60 @@ def test_cli_no_arm_sends_only_disarm(monkeypatch):
     )
     pilot.main()
     assert {p.action for p in packets} == {pilot.Action.DISARM}
+
+
+def _drive(s, t0=0.0):
+    """リンクからARM送信まで進め、DRIVING入りした時刻を返す。"""
+    s.update(t0, NEUTRAL)
+    t = t0 + 1.0
+    while s.phase != Phase.DRIVING:
+        s.update(t, NEUTRAL)
+        t += 0.02
+    return t
+
+
+def test_status_not_armed_restarts_linking():
+    s = ArmSession(link_time=1.0, arm_packets=3)
+    t = _drive(s)
+    assert s.on_status(t + 1.0, armed=False) is True
+    assert s.phase == Phase.LINKING
+    # DISARMからやり直し、link_time後に再びARMする。
+    assert s.update(t + 1.0, NEUTRAL)[0] == Action.DISARM
+    assert s.update(t + 1.5, NEUTRAL)[0] == Action.DISARM
+    assert s.update(t + 2.01, NEUTRAL)[0] == Action.ARM
+
+
+def test_status_armed_keeps_driving():
+    s = ArmSession(link_time=1.0, arm_packets=3)
+    t = _drive(s)
+    assert s.on_status(t + 1.0, armed=True) is False
+    assert s.phase == Phase.DRIVING
+
+
+def test_status_within_grace_is_ignored():
+    """送信前に作られた古いハートビート(DISARM)ではやり直さない。"""
+    s = ArmSession(link_time=1.0, arm_packets=3)
+    t = _drive(s)
+    assert s.on_status(t + 0.1, armed=False) is False
+    assert s.phase == Phase.DRIVING
+
+
+def test_status_ignored_before_driving():
+    s = ArmSession(link_time=1.0)
+    assert s.on_status(5.0, armed=False) is False
+    assert s.phase == Phase.LINKING
+
+
+def test_receiver_recovers_when_it_was_not_ready_at_first():
+    """ESPの起動が遅れてFAULTになっても、状態報告で復帰してARMEDになる。"""
+    s = ArmSession(link_time=0.5, arm_packets=3)
+    safety = Safety()
+    seq, now, ready_at = 0, 0.0, 2.0  # 2秒までESPは健全でない
+    for _ in range(400):
+        healthy = now >= ready_at
+        action, cmd = s.update(now, NEUTRAL)
+        safety.accept(Packet(seq, action, cmd), now, healthy)
+        s.on_status(now, safety.state == State.ARMED)
+        seq, now = seq + 1, now + 0.02
+    assert safety.state == State.ARMED
+    assert s.phase == Phase.DRIVING

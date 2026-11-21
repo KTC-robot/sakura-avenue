@@ -75,6 +75,6 @@ Piのログに `STATUS=ARMED モータOK` が1秒ごとに出れば、通信と�
 | `STATUS応答なし` | `peer_ip`/`peer_port` がPiと一致しているか、`--source-port` が `peer_port` と同じか |
 | ARMされない | スティックがニュートラルか、`STATUS` とESPのシリアルログのFAULT理由 |
 | `モータNG` | CAN配線、C620の電源、`feedback` の鮮度([bench.md](bench.md)) |
-| 動かない・FAULT | 切断やタイムアウト後は、ニュートラルでDISARM→再ARM(Piを再起動) |
+| 動かない・FAULT | ESPがARMEDでないと報告すると、Piが自動でDISARMからやり直します(`受信側がARMEDでないため…` のログ)。直らなければESPシリアルの `wifi/can/fb/inter` のどれが0かを確認 |
 
 隔離ベンチ専用です。認証がないため、他の機器がつながる網では使わないでください([network.md](network.md))。より詳しい情報は [setup_esp32c5.md](setup_esp32c5.md)、[setup_pi.md](setup_pi.md)、[bench.md](bench.md) を参照してください。

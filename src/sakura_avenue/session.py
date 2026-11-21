@@ -21,8 +21,13 @@ class ArmSession:
 
     接続ごとに新しく作る。LINKINGで、スティックがニュートラルのままlink_time
     続くまでDISARMを送る。成立後にARMをarm_packets回送り、以降はDRIVEを送る。
-    ARM中にスティックが動いたら、LINKINGからやり直す。
+    ARM中にスティックが動いたら、LINKINGからやり直す。受信側がARMEDでないと
+    報告したときも、LINKINGからやり直す(on_status)。
     """
+
+    # ARM送信の完了から、受信側の状態報告を信用するまでの猶予[s]。
+    # 送信前に作られた古いハートビートでやり直さないための余裕。
+    STATUS_GRACE_S = 0.5
 
     def __init__(
         self,
@@ -41,6 +46,33 @@ class ArmSession:
         self.phase = Phase.LINKING
         self._since: float | None = None
         self._sent = 0
+        self._driving_since: float | None = None
+
+    def on_status(self, now: float, armed: bool) -> bool:
+        """受信側の状態報告を反映する。ARMEDでなければリンクからやり直す。
+
+        受信側が起動途中やFAULTでARMを受け付けられなかった場合や、走行中に
+        FAULTへ落ちた場合に、DISARM→ARMを再送して復帰させる。
+
+        Args:
+            now: 単調時計[s]。
+            armed: 受信側の状態がARMEDか。
+
+        Returns:
+            やり直しを始めたらTrue。
+        """
+        if (
+            armed
+            or self.phase != Phase.DRIVING
+            or self._driving_since is None
+            or now - self._driving_since < self.STATUS_GRACE_S
+        ):
+            return False
+        self.phase = Phase.LINKING
+        self._since = None
+        self._sent = 0
+        self._driving_since = None
+        return True
 
     def update(self, now: float, command: DriveCommand) -> tuple[Action, DriveCommand]:
         """今回送るべき操作と走行要求を返す。
@@ -67,4 +99,5 @@ class ArmSession:
         self._sent += 1
         if self._sent >= self.arm_packets:
             self.phase = Phase.DRIVING
+            self._driving_since = now
         return Action.ARM, NEUTRAL

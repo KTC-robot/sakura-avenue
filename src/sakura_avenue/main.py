@@ -8,7 +8,7 @@ from .controller.device import find_controller
 from .controller.enum import ButtonCode, ButtonState
 from .controller.model import AxisInputEvent, ControllerState
 from .network import UdpTransport
-from .protocol import Action, Packet
+from .protocol import Action, DeviceState, Packet
 from .session import ArmSession
 
 log = logging.getLogger(__name__)
@@ -87,6 +87,10 @@ def main() -> None:
                         status.state.name,
                         "OK" if status.motor_ok else "NG",
                     )
+                    if session is not None and session.on_status(
+                        start, status.state == DeviceState.ARMED
+                    ):
+                        log.warning("受信側がARMEDでないため、DISARMからやり直します")
                 if not no_status_warned and start - last_status > STATUS_TIMEOUT_S:
                     no_status_warned = True
                     log.warning("STATUS応答なし(%.0f秒)", STATUS_TIMEOUT_S)
