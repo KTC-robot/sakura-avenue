@@ -26,6 +26,18 @@ bool UdpSocket::begin(const char *ip, uint16_t port) {
   fd_ = fd;
   return true;
 }
+bool UdpSocket::send_to(const char *ip, uint16_t port, const uint8_t *data,
+                        size_t size) {
+  if (fd_ < 0 || !ip || port == 0 || !data)
+    return false;
+  sockaddr_in dst{};
+  dst.sin_family = AF_INET;
+  dst.sin_port = htons(port);
+  if (inet_pton(AF_INET, ip, &dst.sin_addr) != 1)
+    return false;
+  return sendto(fd_, data, size, 0, reinterpret_cast<sockaddr *>(&dst),
+                sizeof(dst)) == static_cast<int>(size);
+}
 bool UdpSocket::poll(Receiver &receiver, uint64_t now, bool healthy) {
   receiver.tick(now, healthy && fd_ >= 0);
   if (fd_ < 0)

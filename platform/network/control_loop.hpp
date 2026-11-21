@@ -3,6 +3,7 @@
  * @brief 受信監視、フィードバック、PIリセットとゼロ電流生成を結合する。
  */
 #pragma once
+#include "control/chassis.hpp"
 #include "device/c620.hpp"
 #include "network/receiver.hpp"
 namespace sakura {
@@ -21,11 +22,7 @@ public:
   /**
    * @brief FAULTへ移り、要求値とPIをリセットする。
    */
-  void transport_fault() {
-    receiver_.safety.fault();
-    receiver_.demand = {};
-    chassis_.reset();
-  }
+  void transport_fault();
   /**
    * @brief 1制御周期を実行する。
    * @param now 単調時計[ms]。
@@ -36,21 +33,6 @@ public:
    * @return C620電流フレーム。停止・異常時はゼロ電流。
    */
   CanFrame step(uint64_t now, float dt, bool wifi_ok, bool can_ok,
-                bool interlock_ok) {
-    bool healthy = wifi_ok && can_ok && interlock_ok && feedback_.fresh(now) &&
-                   std::isfinite(dt) && dt > 0 && dt <= 0.05f;
-    receiver_.tick(now, healthy);
-    Four measured{};
-    for (int i = 0; i < 4; i++)
-      measured[i] = feedback_.rpm[i];
-    bool allowed = healthy && receiver_.safety.state == State::Armed;
-    try {
-      auto currents = chassis_.update(receiver_.demand, measured, dt, allowed);
-      return current_frame(currents);
-    } catch (const std::invalid_argument &) {
-      transport_fault();
-      return current_frame({});
-    }
-  }
+                bool interlock_ok);
 };
 } // namespace sakura

@@ -1,6 +1,11 @@
 #include "device/twai_bus.hpp"
 #include "driver/gpio.h"
 namespace sakura {
+namespace {
+constexpr uint32_t rx_queue_depth = 64;           ///< 受信キューのフレーム数。
+constexpr uint32_t can_bitrate_bps = 1000000;     ///< Classic CAN 1Mbps。
+constexpr uint32_t error_rx_fetch_failed = 0x200; ///< last_error: rx取得失敗。
+} // namespace
 bool TwaiBus::received(twai_node_handle_t node,
                        const twai_rx_done_event_data_t *, void *ctx) {
   auto &self = *static_cast<TwaiBus *>(ctx);
@@ -9,6 +14,7 @@ bool TwaiBus::received(twai_node_handle_t node,
   raw.buffer = f.data.data();
   raw.buffer_len = f.data.size();
   if (twai_node_receive_from_isr(node, &raw) != ESP_OK) {
+    self.last_error_ = error_rx_fetch_failed; // 受信取得失敗
     self.fault_ = true;
     return false;
   }
@@ -18,8 +24,10 @@ bool TwaiBus::received(twai_node_handle_t node,
   f.remote = raw.header.rtr;
   f.fd = raw.header.fdf;
   BaseType_t wake = pdFALSE;
+  // FBは最新値だけが必要。あふれてもFAULTにせず回数だけ数える。
+  // 古さはFeedback::freshの期限で検出する。
   if (xQueueSendFromISR(self.rx_, &f, &wake) != pdTRUE)
-    self.fault_ = true;
+    self.rx_dropped_++;
   return wake == pdTRUE;
 }
 bool TwaiBus::sent(twai_node_handle_t, const twai_tx_done_event_data_t *event,
@@ -30,13 +38,17 @@ bool TwaiBus::sent(twai_node_handle_t, const twai_tx_done_event_data_t *event,
   self.busy_ = false;
   return false;
 }
-bool TwaiBus::error(twai_node_handle_t, const twai_error_event_data_t *,
+bool TwaiBus::error(twai_node_handle_t, const twai_error_event_data_t *event,
                     void *ctx) {
-  static_cast<TwaiBus *>(ctx)->fault_ = true;
+  auto &self = *static_cast<TwaiBus *>(ctx);
+  self.last_error_ = event->err_flags.val;
+  self.error_count_++;
+  self.fault_ = true;
   return false;
 }
 bool TwaiBus::changed(twai_node_handle_t,
                       const twai_state_change_event_data_t *event, void *ctx) {
+  static_cast<TwaiBus *>(ctx)->state_count_++;
   if (event->new_sta != TWAI_ERROR_ACTIVE)
     static_cast<TwaiBus *>(ctx)->fault_ = true;
   return false;
@@ -53,7 +65,7 @@ esp_err_t TwaiBus::begin(int tx, int rx) {
   if (node_ || rx_ || tx == rx || !GPIO_IS_VALID_OUTPUT_GPIO(tx) ||
       !GPIO_IS_VALID_GPIO(rx))
     return ESP_ERR_INVALID_ARG;
-  rx_ = xQueueCreate(16, sizeof(CanFrame));
+  rx_ = xQueueCreate(rx_queue_depth, sizeof(CanFrame));
   if (!rx_)
     return ESP_ERR_NO_MEM;
   twai_onchip_node_config_t cfg{};
@@ -61,7 +73,7 @@ esp_err_t TwaiBus::begin(int tx, int rx) {
   cfg.io_cfg.rx = static_cast<gpio_num_t>(rx);
   cfg.io_cfg.quanta_clk_out = GPIO_NUM_NC;
   cfg.io_cfg.bus_off_indicator = GPIO_NUM_NC;
-  cfg.bit_timing.bitrate = 1000000;
+  cfg.bit_timing.bitrate = can_bitrate_bps;
   cfg.tx_queue_depth = 1;
   cfg.fail_retry_cnt = 0;
   auto result = twai_new_node_onchip(&cfg, &node_);
@@ -84,8 +96,8 @@ esp_err_t TwaiBus::begin(int tx, int rx) {
 bool TwaiBus::send(const CanFrame &f) {
   // Fail latched; zero-current frames can still be attempted. Never queue stale
   // drive frames.
-  if (!node_ || f.size != 8 || f.id != c620_command_id || f.extended ||
-      f.remote || f.fd)
+  if (!node_ || f.size != can_data_size || f.id != c620_command_id ||
+      f.extended || f.remote || f.fd)
     return false;
   for (uint8_t b : f.data)
     if (fault_ && b != 0)
@@ -98,14 +110,32 @@ bool TwaiBus::send(const CanFrame &f) {
   tx_bytes_ = f.data;
   tx_frame_ = {};
   tx_frame_.header.id = f.id;
-  tx_frame_.header.dlc = 8;
+  tx_frame_.header.dlc = can_data_size;
   tx_frame_.buffer = tx_bytes_.data();
-  tx_frame_.buffer_len = 8;
+  tx_frame_.buffer_len = can_data_size;
   if (twai_node_transmit(node_, &tx_frame_, 0) != ESP_OK) {
     busy_ = false;
     fault_ = true;
     return false;
   }
+  return true;
+}
+bool TwaiBus::info(twai_node_status_t &status) const {
+  twai_node_record_t record{};
+  return node_ && twai_node_get_info(node_, &status, &record) == ESP_OK;
+}
+bool TwaiBus::recover() {
+  twai_node_status_t st{};
+  if (!info(st))
+    return false;
+  if (st.state == TWAI_ERROR_BUS_OFF) {
+    twai_node_recover(node_);
+    return false;
+  }
+  if (st.state != TWAI_ERROR_ACTIVE)
+    return false;
+  busy_ = false;
+  fault_ = false;
   return true;
 }
 bool TwaiBus::read(CanFrame &f) {

@@ -4,11 +4,13 @@
 
 Pi側: `ControllerDevice`（evdevと自動検出）→ `ControllerState`（軸/ボタン）→ `CommandMapper`（正規化・deadzone・slow）→ `DriveCommand` → `UdpTransport`。
 
-CLIはプレビューとDISARM送信に限定しています。マッパーとプロトコル自体はDRIVEを生成できますが、操縦ARM UIは未接続です。evdevは任意依存であり、純粋入力モデル・マッパー・通信テストは実機なしで動きます。アダプターテストは疑似デバイスとイベントを使います。
+CLIは `ArmSession`(`session.py`)に従い、コントローラー接続後、スティックがニュートラルのまま `--link-time` 続いたらARMを送り、以降DRIVEを送ります。切断時はDISARMで終了し、再接続は起動し直しです。`--no-arm` ならDISARMのみです。受信側は1秒に1回、状態(`STATUS`)と「モータOK/NG」をPiへ返し、PiはログとSTATUS途絶の警告に使います。DRIVE送信中に受信側がARMEDでないと報告した場合(起動が遅れてARMを受け付けなかった、走行中にFAULTへ落ちた等)、Piは `ArmSession.on_status` でLINKINGへ戻り、DISARM→ARMをやり直します。evdevは任意依存であり、純粋入力モデル・マッパー・通信テストは実機なしで動きます。アダプターテストは疑似デバイスとイベントを使います。
 
 ESP側: `UdpSocket`（明示したローカルIP/portでbind）→ `Receiver`（送信元、形式、順序）→ `Safety` → `ControlLoop` → `Chassis` → `Omni` → `SpeedController ×4` → `current_frame` → `TwaiBus`。
 
-純粋ロジックと各アダプターは用意されていますが、**setup()には接続していません**。安全に起動するための意図的な境界です。実タスク、Wi-Fi接続イベント、物理インターロック、認証が完成するまでモーターを有効化しません。
+`platform/main.cpp` が上記を実タスクに結合しています。起動時は必ずDISARMで、Piからのニュートラル DISARM → 明示ARM → DRIVE の順でのみ駆動します。Wi-Fi・CAN・全C620のフィードバック(100ms)・インターロックのどれかが欠けるとFAULTです。実測RPMがモーター最高回転数(`kMotorMaxRpm`)を超えてもFAULTです。スティック全開の速度は、最高回転数の80%(`kSpeedFraction`)です。ベンチ(`omni_bench`)だけは低速値(`kBenchLimits`、約300RPM、過速度500RPM)を使います。電流指令は±1500(C620生値)に制限します。
+
+車体の寸法・ID配置・速度上限は `platform/control/vehicle_config.hpp` に集約しています(ベンチと共有)。CANはARM中と停止直後(ゼロ電流5フレーム)のみ送信し、DISARM中は送信しません(ACK相手がいないとbus offになるため)。CAN異常はDISARM中だけ自動復旧を試み、復旧後もARMにはPiの明示操作が必要です。
 
 ## 4輪オムニ
 
@@ -37,10 +39,10 @@ motor_rpm[motor_index] = wheel_rpm × g × motor_sign
 
 `Receiver::receive` の healthy と `ControlLoop::step` の健康判定には同じ全体状態を渡してください。ネットワーク接続だけをhealthyとしてARMしないでください。未来の実タスクは受信がなくても周期tickし、送信失敗時には即座に `transport_fault()` を呼び、ゼロ電流の再送を試みる必要があります。
 
-## 実機への統合条件（未実装）
+## 実機への統合条件（残り）
 
-- Wi-Fi接続イベントとCAN状態イベントをControlLoopの健全性へ結線
-- タイマー起点の周期制御、watchdog、タスク停止時の物理インターロック
+- 物理インターロックのGPIO(`kInterlockGpio`、現在は未配線で駆動電源の物理遮断のみに依存)
+- タイマー起点の周期制御とwatchdog(現在は`loop()`内の5ms周期)
 - 認証されたセッションと操縦者のニュートラル/再許可操作
 - 設定検証成功と物理許可の両方がなければTWAIを開始しない
 - CAN bus-offではゼロフレームも届かないので電源遮断を実行

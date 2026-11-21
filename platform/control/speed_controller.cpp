@@ -18,7 +18,7 @@ SpeedControllerResult SpeedController::update(float targetRpm, float actualRpm,
   const float error = targetRpm - actualRpm;
   const float integralCandidate = std::clamp(
       integral_ + error * dt, -PID_INTEGRAL_LIMIT, PID_INTEGRAL_LIMIT);
-  const float outputCandidate = SPEED_KP * error + SPEED_KI * integralCandidate;
+  const float outputCandidate = kp_ * error + ki_ * integralCandidate;
   const bool saturatedHigh =
       outputCandidate >= static_cast<float>(MAX_CURRENT_COMMAND);
   const bool saturatedLow =
@@ -33,7 +33,7 @@ SpeedControllerResult SpeedController::update(float targetRpm, float actualRpm,
     integral_ = integralCandidate;
   }
 
-  const float output = SPEED_KP * error + SPEED_KI * integral_;
+  const float output = kp_ * error + ki_ * integral_;
   // 最後にC620へ渡せる電流指令範囲へ制限する。
   const float limitedOutput =
       std::clamp(output, -static_cast<float>(MAX_CURRENT_COMMAND),
@@ -44,3 +44,8 @@ SpeedControllerResult SpeedController::update(float targetRpm, float actualRpm,
 }
 
 void SpeedController::reset() { integral_ = 0.0f; }
+
+void SpeedController::setGains(float kp, float ki) {
+  kp_ = kp;
+  ki_ = ki;
+}

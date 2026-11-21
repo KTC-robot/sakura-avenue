@@ -1,0 +1,16 @@
+# pre-commit (.githooks/pre-commit) がホストビルド対象の .cpp に対して実行する。
+# バイト詰め/CANフレーム処理で誤検知が多いチェックは無効化している。
+Checks: >-
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -bugprone-signed-bitwise,
+  -bugprone-implicit-widening-of-multiplication-result,
+  clang-analyzer-*,
+  performance-*,
+  -performance-enum-size,
+  misc-redundant-expression,
+  misc-unused-parameters
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'platform/.*'

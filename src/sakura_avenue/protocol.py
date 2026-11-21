@@ -72,3 +72,70 @@ def newer(sequence: int, previous: int) -> bool:
         差分が0より大きく半周未満ならTrue。
     """
     return 0 < ((sequence - previous) & 0xFFFFFFFF) < 0x80000000
+
+
+STATUS_WIRE = struct.Struct("!2sBBBBI")
+
+
+class DeviceState(IntEnum):
+    """受信側(ESP)の安全状態。値は仕様のstateと一致する。"""
+
+    DISARM = 0
+    ARMED = 1
+    STOP = 2
+    FAULT = 3
+
+
+@dataclass(frozen=True)
+class Status:
+    """受信側から1秒ごとに届くハートビート。"""
+
+    state: DeviceState
+    flags: int
+    counter: int
+
+    @property
+    def wifi_ok(self) -> bool:
+        """Wi-Fiが接続済みか。"""
+        return bool(self.flags & 1)
+
+    @property
+    def can_ok(self) -> bool:
+        """CANが健全か。"""
+        return bool(self.flags & 2)
+
+    @property
+    def feedback_ok(self) -> bool:
+        """全C620のフィードバックが期限内か。"""
+        return bool(self.flags & 4)
+
+    @property
+    def interlock_ok(self) -> bool:
+        """物理インターロックが許可か。"""
+        return bool(self.flags & 8)
+
+    @property
+    def motor_ok(self) -> bool:
+        """モーター系が使える状態か(CAN健全かつ全C620のフィードバック有効)。"""
+        return self.can_ok and self.feedback_ok
+
+
+def encode_status(status: Status) -> bytes:
+    """ハートビートを10バイトへ符号化する(テスト・疑似受信側用)。"""
+    return STATUS_WIRE.pack(
+        b"ST", 1, DeviceState(status.state), status.flags & 0xFF, 0, status.counter
+    )
+
+
+def decode_status(data: bytes) -> Status:
+    """受信bytesをハートビートへ変換する。
+
+    Raises:
+        ValueError: 長さ・magic・version・stateが仕様外の場合。
+    """
+    if len(data) != STATUS_WIRE.size:
+        raise ValueError("length")
+    magic, version, state, flags, reserved, counter = STATUS_WIRE.unpack(data)
+    if magic != b"ST" or version != 1 or reserved != 0:
+        raise ValueError("magic/version")
+    return Status(DeviceState(state), flags, counter)

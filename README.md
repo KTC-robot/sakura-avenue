@@ -2,7 +2,7 @@
 
 Raspberry Pi（Python）でPSコントローラーを読み、5GHz Wi-Fi / UDPでESP32-C5へ指令を送る、4輪オムニロボットの開発基盤です。M3508 P19 ×4 / C620 ×4、Classic CAN 1Mbps、夏のPI速度制御を継承します。ESP-NOW、IM920、送信専用ESP32は使用しません。
 
-**現在は実機駆動前の初期整備段階です。** firmwareの起動処理はDISARMを表示するだけでWi-Fi/CANを開始しません。Pi CLIは入力プレビューとDISARM送信のみです。純粋な制御モジュール・UDPアダプター・状態管理のテストは実施できますが、無線操縦できる完成機ではありません。
+**実機試験の段階です。** firmwareはWi-Fi/UDP受信・CAN・4輪オムニ制御を結合済みで、起動時はDISARMです。車輪を浮かせたベンチ(`esp32c5_motor_bench` / `esp32c5_omni_bench`)で動作を確認しています。Pi CLIは、コントローラー接続後にスティックがニュートラルのまま1秒続くとARMを送り、以降DRIVEを送ります(`--no-arm`でDISARMのみ)。純粋な制御モジュール・UDPアダプター・状態管理のテストは実施できますが、無線操縦できる完成機ではありません。
 
 ## ハードウェアと役割
 
@@ -39,6 +39,8 @@ uv run pytest -q
 uv run sakura-pilot --verbose   # 入力プレビュー。モーター駆動なし
 ```
 
+コミット前フック(ステージしたファイルに ruff / clang-format / clang-tidy)を有効にするには、クローン後に一度だけ `git config core.hooksPath .githooks` を実行します。clang-format・clang-tidy・CMakeが必要です。
+
 ```bash
 # リポジトリルートから。実機不要
 cmake -S tests/host -B build/host -DCMAKE_BUILD_TYPE=Debug
@@ -47,11 +49,15 @@ ctest --test-dir build/host --output-on-failure
 
 # ESP32-C5ファームウェア(書き込みなし)
 pio run -e esp32c5_rx
+# 実機ベンチ(車輪を浮かせて使用): docs/bench.md
+pio run -e esp32c5_omni_bench
 ```
+
+実機を動かす手順は [始め方](docs/getting_started.md) を参照してください。
 
 ドキュメントの読み順と夏の資料との対応は [docs一覧](docs/README.md)を参照してください。
 
-詳しくは [Piセットアップ](docs/setup_pi.md)、[ESP32-C5セットアップ](docs/setup_esp32c5.md)、[検証記録](docs/validation.md)を参照してください。今回、実機への書き込みは行いません。
+詳しくは [Piセットアップ](docs/setup_pi.md)、[ESP32-C5セットアップ](docs/setup_esp32c5.md)、[実機ベンチ試験](docs/bench.md)、[検証記録](docs/validation.md)を参照してください。今回、実機への書き込みは行いません。
 
 ## 通信と安全
 
@@ -65,6 +71,6 @@ v1は20バイトのUDPパケット。正規化した `vx/vy/wz`、バージョ�
 
 Pi/開発ボード型番、車輪位置・駆動方向・半径・実減速比・モーター符号、GPIO、速度上限、SSID/パスワード/IP、競技機構は未確定です。`platform/config.example.json` は未設定項目のスキーマ例で、ファームウェアは読み込みません。テスト用の幾何配置は実機設定に使いません。
 
-5GHz Wi-Fiの接続・切断イベントの実タスクへの統合、アプリケーション認証、ARM操作UI、設定ローダー、実機制御タスクの開始、物理インターロック、PI調整、実機検証は今後の作業です。初期整備では安全に出力禁止のまま残しています。
+5GHz Wi-Fiの接続・切断イベントの実タスクへの統合、アプリケーション認証、設定ローダー、実機制御タスクの開始、物理インターロック、PI調整、実機検証は今後の作業です。初期整備では安全に出力禁止のまま残しています。
 
 夏のコードの出典・差分・権利確認事項は [移植記録](docs/migration.md)を参照してください。

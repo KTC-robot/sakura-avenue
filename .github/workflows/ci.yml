@@ -20,6 +20,21 @@ jobs:
       - run: cmake -S tests/host -B build/host -DCMAKE_BUILD_TYPE=Debug
       - run: cmake --build build/host
       - run: ctest --test-dir build/host --output-on-failure
+  cpp-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.17"
+      # ローカルのフック(.githooks/pre-commit)と整形結果を揃えるためバージョンを固定
+      - run: uv tool install clang-format==23.1.5 && uv tool install clang-tidy==23.1.4
+      - name: clang-format
+        run: git ls-files -z '*.c' '*.h' '*.cpp' '*.hpp' | xargs -0 clang-format --dry-run --Werror
+      - name: clang-tidy (ホストビルド対象のみ)
+        run: |
+          cmake -S tests/host -B build/host -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          jq -r '.[].file' build/host/compile_commands.json | xargs clang-tidy -p build/host --quiet
   esp32c5:
     runs-on: ubuntu-latest
     steps:

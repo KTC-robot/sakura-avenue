@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# ステージされたファイルにだけリンターをかける。
+#   Python: ruff check / ruff format --check
+#   C/C++ : clang-format --dry-run, clang-tidy (tests/host でビルドされる .cpp のみ)
+# 有効化: git config core.hooksPath .githooks
+# 一時的に飛ばす: git commit --no-verify
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+mapfile -t files < <(git diff --cached --name-only --diff-filter=ACMR)
+py=() cpp=()
+for f in "${files[@]}"; do
+  case "$f" in
+    *.py) py+=("$f") ;;
+    *.c | *.cc | *.cpp | *.h | *.hpp) cpp+=("$f") ;;
+  esac
+done
+
+fail=0
+run() { "$@" || fail=1; }
+
+if ((${#py[@]})); then
+  echo "[pre-commit] ruff (${#py[@]} files)"
+  run uv run --quiet ruff check "${py[@]}"
+  run uv run --quiet ruff format --check "${py[@]}"
+fi
+
+if ((${#cpp[@]})); then
+  echo "[pre-commit] clang-format (${#cpp[@]} files)"
+  run clang-format --dry-run --Werror "${cpp[@]}"
+
+  if command -v clang-tidy >/dev/null; then
+    db=build/host
+    if [[ ! -f $db/compile_commands.json || tests/host/CMakeLists.txt -nt $db/compile_commands.json ]]; then
+      cmake -S tests/host -B "$db" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON >/dev/null
+    fi
+    # compile_commands.json に載っている (= ホストでビルドできる) .cpp だけ対象
+    mapfile -t known < <(python3 -c 'import json,os,sys
+for e in json.load(open(sys.argv[1])): print(os.path.relpath(os.path.realpath(e["file"])))' "$db/compile_commands.json")
+    tidy=()
+    for f in "${cpp[@]}"; do
+      for k in "${known[@]}"; do [[ $f == "$k" ]] && tidy+=("$f") && break; done
+    done
+    if ((${#tidy[@]})); then
+      echo "[pre-commit] clang-tidy (${#tidy[@]} files)"
+      run clang-tidy -p "$db" --quiet "${tidy[@]}"
+    fi
+  else
+    echo "[pre-commit] clang-tidy が見つからないためスキップ"
+  fi
+fi
+
+if ((fail)); then
+  echo "[pre-commit] 失敗。修正例: uv run ruff format <file> / clang-format -i <file>" >&2
+  exit 1
+fi

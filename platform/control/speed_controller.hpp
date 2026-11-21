@@ -6,6 +6,8 @@
  * @brief 1台のmotorに対するPI速度制御と積分状態を定義する。
  */
 
+#include "control/reference_gains.hpp"
+
 #include <cstdint>
 
 /**
@@ -38,6 +40,15 @@ public:
    */
   void reset();
 
+  /**
+   * @brief PIゲインを変更する(ベンチ調整用)。既定は reference_gains.hpp の値。
+   * @param kp 比例ゲイン[カウント/RPM]。
+   * @param ki 積分ゲイン[カウント/(RPM・s)]。
+   */
+  void setGains(float kp, float ki);
+
 private:
+  float kp_ = SPEED_KP;   ///< 比例ゲイン。
+  float ki_ = SPEED_KI;   ///< 積分ゲイン。
   float integral_ = 0.0f; ///< 定常偏差を補うために保持する誤差の時間積分値。
 };
